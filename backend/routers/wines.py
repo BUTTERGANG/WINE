@@ -190,6 +190,75 @@ async def create_wine(
     return {"ok": True, "wine_id": wine.id, "note_id": note.id}
 
 
+@router.get("/export")
+async def export_journal(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Export the current user's tasting journal as CSV."""
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(TastingNote)
+        .options(selectinload(TastingNote.wine), selectinload(TastingNote.location))
+        .where(TastingNote.user_id == user.id)
+        .order_by(TastingNote.created_at.desc())
+    )
+    notes = result.scalars().all()
+
+    import csv
+    import io
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Date", "Wine", "Producer", "Vintage", "Region", "Varietal", "Type",
+        "Rating", "Appearance", "Nose", "Palate", "Finish", "Body",
+        "Sweetness", "Acidity", "Tannins", "Notes", "Food Pairing",
+        "Price Paid", "Venue", "Venue Type", "Latitude", "Longitude",
+    ])
+    for n in notes:
+        wine = n.wine
+        loc = n.location
+        writer.writerow([
+            n.created_at.strftime("%Y-%m-%d") if n.created_at else "",
+            wine.name if wine else "",
+            wine.producer if wine else "",
+            wine.vintage if wine else "",
+            wine.region if wine else "",
+            wine.varietal if wine else "",
+            wine.wine_type if wine else "",
+            n.rating,
+            n.appearance,
+            n.nose,
+            n.palate,
+            n.finish,
+            n.body,
+            n.sweetness,
+            n.acidity,
+            n.tannins,
+            n.notes,
+            n.food_pairing,
+            n.price_paid or "",
+            loc.name if loc else "",
+            loc.venue_type if loc else "",
+            loc.lat if loc else "",
+            loc.lon if loc else "",
+        ])
+
+    from starlette.responses import Response
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="wine-journal-{user.username}.csv"',
+        },
+    )
+
+
 @router.get("/{wine_id}")
 async def get_wine(wine_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Wine detail page."""

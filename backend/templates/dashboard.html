@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    {% if not user %}
+    <div class="text-center py-16">
+        <div class="text-6xl mb-4">🍷</div>
+        <h1 class="text-2xl font-bold mb-2">Your Palate Awaits</h1>
+        <p class="text-neutral-500 mb-6">Log in to see your taste profile and personalized recommendations.</p>
+        <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-6 py-2.5 rounded-lg text-white font-medium transition">Log In</a>
+    </div>
+    {% else %}
+
+    <h1 class="text-2xl font-bold mb-1">🍷 Your Dashboard</h1>
+    <p class="text-neutral-500 text-sm mb-6">Your taste profile and personalized recommendations</p>
+
+    <!-- Taste Profile -->
+    <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 mb-6" id="taste-profile">
+        <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">🧠</span>
+            <h2 class="text-lg font-semibold">Your Taste Profile</h2>
+        </div>
+
+        {% if profile and profile.has_data %}
+        <p class="text-neutral-300 mb-4 italic">{{ profile.palette_summary }}</p>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-2xl font-bold text-wine-400">{{ profile.total_tastings }}</div>
+                <div class="text-neutral-500 text-xs">Tastings</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-2xl font-bold text-wine-400">{{ profile.avg_rating or '-' }}</div>
+                <div class="text-neutral-500 text-xs">Avg Rating</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-lg font-bold text-wine-400 capitalize">{{ profile.favorite_type or '-' }}</div>
+                <div class="text-neutral-500 text-xs">Best Type</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-lg font-bold text-wine-400">{{ profile.favorite_varietal or '-' }}</div>
+                <div class="text-neutral-500 text-xs">Best Varietal</div>
+            </div>
+        </div>
+
+        <!-- Rating by type chart -->
+        {% if profile.rating_by_type %}
+        <h3 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider mb-3">Rating by Type</h3>
+        <div class="space-y-2 mb-6">
+            {% for type, avg in profile.rating_by_type.items() %}
+            <div>
+                <div class="flex justify-between text-xs text-neutral-400 mb-1">
+                    <span class="capitalize">{{ type }}</span>
+                    <span>{{ avg }}/5</span>
+                </div>
+                <div class="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-wine-500 rounded-full transition-all" style="width: {{ (avg / 5) * 100 }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Top rated wines -->
+        {% if profile.top_wines %}
+        <h3 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider mb-3">🏆 Top Rated Wines</h3>
+        <div class="space-y-2">
+            {% for w in profile.top_wines %}
+            <a href="/api/wines/{{ w.id }}" class="block bg-neutral-800 rounded-lg p-3 hover:bg-neutral-700 transition">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm font-medium">{{ w.display_name }}</div>
+                        <div class="text-xs text-neutral-500">{{ w.varietal }} · {{ w.region }}</div>
+                    </div>
+                    <span class="text-yellow-500 text-sm">{{ '★' * w.rating }}{{ '☆' * (5 - w.rating) }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-neutral-500 text-sm py-4">
+            <p>No tasting data yet. Start logging wines to build your taste profile!</p>
+            <a href="/wine/add" class="text-wine-400 hover:underline mt-2 inline-block">Add your first tasting →</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recommendations -->
+    <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+        <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">🎯</span>
+            <h2 class="text-lg font-semibold">Recommended For You</h2>
+        </div>
+
+        {% if recommendations %}
+        <div class="grid md:grid-cols-2 gap-3">
+            {% for r in recommendations %}
+            <a href="/api/wines/{{ r.id }}" class="bg-neutral-800 rounded-lg p-3 hover:bg-neutral-700 transition flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center text-sm flex-shrink-0">
+                    🍷
+                </div>
+                <div class="min-w-0">
+                    <div class="text-sm font-medium truncate">{{ r.display }}</div>
+                    <div class="text-xs text-neutral-500 truncate">{{ r.region }} · {{ r.varietal or r.wine_type }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-neutral-500 text-sm">Rate more wines to get personalized recommendations. Or just <a href="/wine/add" class="text-wine-400 hover:underline">add a wine now</a>!</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

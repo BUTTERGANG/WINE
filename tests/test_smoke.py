@@ -138,3 +138,38 @@ class TestSmoke:
     def test_404_handling(self):
         resp = httpx.get(f"{BASE}/profile/nonexistent_user_xyz")
         assert resp.status_code == 404
+
+    # ── Phase 3 tests ─────────────────────────────────────────────────
+
+    def test_taste_profile(self):
+        resp = httpx.get(f"{BASE}/api/profile/wine_lover/taste")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["has_data"] is True
+        assert data["total_tastings"] > 0
+        assert "favorite_type" in data
+
+    def test_recommendations(self):
+        resp = httpx.get(f"{BASE}/api/recommendations")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data
+
+    def test_heatmap(self):
+        resp = httpx.get(f"{BASE}/api/locations/heatmap")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "points" in data
+
+    def test_heatmap_filtered(self):
+        resp = httpx.get(f"{BASE}/api/locations/heatmap?wine_type=red")
+        assert resp.status_code == 200
+
+    def test_dashboard_page(self):
+        resp = httpx.get(f"{BASE}/dashboard")
+        assert resp.status_code == 200
+        assert "Dashboard" in resp.text or "Your Palate" in resp.text
+
+    def test_export_csv_no_auth(self):
+        resp = httpx.get(f"{BASE}/api/wines/export")
+        assert resp.status_code == 401

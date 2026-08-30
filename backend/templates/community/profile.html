@@ -40,6 +40,17 @@
         </div>
     </div>
 
+    <!-- Taste Profile Card (loaded via HTMX on the user's own profile) -->
+    {% if user and user.id == profile_user.id %}
+    <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 mt-6" 
+         hx-get="/api/profile/{{ user.id }}/taste"
+         hx-trigger="load"
+         hx-swap="innerHTML"
+         hx-target="this">
+        <div class="text-neutral-500 text-sm">Loading taste profile...</div>
+    </div>
+    {% endif %}
+
     <!-- Tasting History -->
     <h2 class="text-lg font-semibold mt-8 mb-4">Tasting History</h2>
     <div class="space-y-3">

@@ -349,3 +349,56 @@ async def get_group(
             "is_member": is_member,
         },
     )
+
+
+# ── Taste Profile & Recommendations ──────────────────────────────────────
+
+
+@router.get("/profile/{user_id}/taste")
+async def get_taste_profile(
+    user_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute and return a user's taste profile."""
+    from backend.services.taste_profile import compute_taste_profile
+
+    # Resolve username → ID
+    result = await db.execute(
+        select(User.id).where((User.id == user_id) | (User.username == user_id))
+    )
+    resolved = result.scalar_one_or_none()
+    if not resolved:
+        if request.headers.get("HX-Request") == "true":
+            return templates.TemplateResponse(
+                "components/taste_profile.html",
+                {"request": request, "profile": {"has_data": False}},
+            )
+        return {"has_data": False}
+
+    profile = await compute_taste_profile(resolved, db)
+
+    # If HTMX request, render the template partial
+    if request.headers.get("HX-Request") == "true":
+        return templates.TemplateResponse(
+            "components/taste_profile.html",
+            {"request": request, "profile": profile},
+        )
+
+    return profile
+
+
+@router.get("/recommendations")
+async def get_recommendations(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    limit: int = 5,
+):
+    """Get personalized wine recommendations for the current user."""
+    user = await get_current_user(request, db)
+    if not user:
+        return {"items": []}
+
+    from backend.services.taste_profile import get_recommendations
+    items = await get_recommendations(user.id, db, limit)
+    return {"items": items}

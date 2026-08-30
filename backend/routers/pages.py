@@ -161,3 +161,24 @@ async def groups_list_page(request: Request, db: AsyncSession = Depends(get_db))
     """List all public wine groups."""
     user = await get_current_user(request, db)
     return templates.TemplateResponse("community/groups.html", {"request": request, "user": user})
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Personal dashboard with taste profile and recommendations."""
+    user = await get_current_user(request, db)
+    profile = None
+    recommendations = []
+    if user:
+        from backend.services.taste_profile import compute_taste_profile, get_recommendations
+        profile = await compute_taste_profile(user.id, db)
+        recommendations = await get_recommendations(user.id, db, 6)
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {
+            "request": request,
+            "user": user,
+            "profile": profile,
+            "recommendations": recommendations,
+        },
+    )

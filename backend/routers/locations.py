@@ -1,8 +1,8 @@
-"""Location routes — map pins, nearby query."""
+"""Location routes — map pins, nearby query, heatmap."""
 
 from fastapi import APIRouter, Depends, Request, Query, Form, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -29,17 +29,15 @@ async def get_nearby_locations(
     Return tasting-note pins within radius as GeoJSON.
     Uses a bounding-box approximation (no PostGIS in SQLite).
     """
-    # Approximate: 1° lat ≈ 111km, 1° lon ≈ cos(lat)*111km
     deg_per_km = 1 / 111.0
     lat_range = radius * deg_per_km
-    lon_range = radius * deg_per_km / max(0.1, abs(lat * 3.14159 / 180))  # cos adjustment
+    lon_range = radius * deg_per_km / max(0.1, abs(lat * 3.14159 / 180))
 
     lat_min = lat - lat_range
     lat_max = lat + lat_range
     lon_min = lon - lon_range
     lon_max = lon + lon_range
 
-    # Build query
     stmt = (
         select(TastingNote, Wine, Location, User)
         .join(Wine, TastingNote.wine_id == Wine.id)
@@ -87,6 +85,51 @@ async def get_nearby_locations(
         "type": "FeatureCollection",
         "features": features,
     }
+
+
+@router.get("/heatmap")
+async def get_heatmap_data(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    wine_type: str = Query("", description="Filter by wine type"),
+):
+    """
+    Return weighted points for Leaflet.heat — intensity based on rating.
+    Returns array of [lat, lon, intensity] triplets.
+    """
+    stmt = (
+        select(Location.lat, Location.lon, TastingNote.rating, TastingNote.created_at)
+        .join(TastingNote, TastingNote.location_id == Location.id)
+        .where(TastingNote.is_public == True)
+    )
+
+    if wine_type:
+        stmt = stmt.join(Wine, TastingNote.wine_id == Wine.id).where(Wine.wine_type == wine_type)
+
+    stmt = stmt.limit(500)
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    # Normalize ratings to 0.2–1.0 intensity, recency bonus
+    from datetime import datetime, timezone
+    now = datetime.utcnow()
+
+    points = []
+    for lat, lon, rating, created_at in rows:
+        intensity = 0.2 + (rating / 5.0) * 0.6  # 0.2–0.8 from rating
+        # Recency bonus: tastings within 30 days get +0.2
+        if created_at:
+            # Make naive if needed
+            if created_at.tzinfo:
+                created_at = created_at.replace(tzinfo=None)
+            age_days = (now - created_at).days
+            if age_days < 30:
+                intensity += 0.2
+        intensity = min(intensity, 1.0)
+
+        points.append([lat, lon, intensity])
+
+    return {"points": points}
 
 
 @router.post("/geocode")

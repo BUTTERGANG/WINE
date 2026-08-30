@@ -2,20 +2,58 @@
 {% block title %}Map{% endblock %}
 {% block content %}
 <div class="h-[calc(100vh-3.5rem)] relative">
-    <!-- Map controls overlay -->
-    <div class="absolute top-4 left-4 z-[1000] flex gap-2">
-        <button id="filter-my" class="bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-wine-600 hover:border-wine-500 transition"
-                onclick="toggleFilter('my')">📍 My Wines</button>
-        <button id="filter-all" class="bg-wine-600 text-white border border-wine-500 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-wine-500 transition"
-                onclick="toggleFilter('all')">🌍 All Wines</button>
+    <!-- Overlay controls -->
+    <div class="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+        <!-- View mode -->
+        <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
+            <button id="filter-my" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
+                    onclick="toggleFilter('my')">📍 My</button>
+            <button id="filter-all" class="px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition"
+                    onclick="toggleFilter('all')">🌍 All</button>
+        </div>
+        <!-- Map mode toggle -->
+        <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
+            <button id="mode-pins" class="px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition"
+                    onclick="setMapMode('pins')">📍 Pins</button>
+            <button id="mode-heat" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
+                    onclick="setMapMode('heat')">🔥 Heat</button>
+        </div>
+        <!-- Radius selector -->
+        <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
+            <label class="text-xs text-neutral-400 block mb-1">Radius: <span id="radius-label">50</span> km</label>
+            <input type="range" min="5" max="500" value="50" step="5" id="radius-slider"
+                   class="w-24 accent-wine-500"
+                   oninput="document.getElementById('radius-label').textContent=this.value; debounceLoadPins()">
+        </div>
+        <!-- Wine type filter -->
+        <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
+            <select id="type-filter" class="bg-transparent text-xs text-neutral-300 border-none focus:outline-none" onchange="debounceLoadPins()">
+                <option value="">All types</option>
+                <option value="red">Red</option>
+                <option value="white">White</option>
+                <option value="rosé">Rosé</option>
+                <option value="sparkling">Sparkling</option>
+            </select>
+        </div>
     </div>
+
+    <!-- Near me button -->
+    <button id="near-me-btn" class="absolute bottom-8 right-4 z-[1000] bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg transition flex items-center gap-2"
+            onclick="findNearMe()">
+        📍 Near Me
+    </button>
 
     <div id="wine-map" class="w-full h-full"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 let map;
 let markersLayer;
+let heatLayer;
+let currentMapMode = 'pins';
+let currentFilter = 'all';
+let loadTimer;
 
 function initMap() {
     map = L.map('wine-map').setView([40, -95], 4);
@@ -25,20 +63,26 @@ function initMap() {
     }).addTo(map);
 
     markersLayer = L.layerGroup().addTo(map);
-    
-    // Get user location
+
     navigator.geolocation?.getCurrentPosition(pos => {
         map.setView([pos.coords.latitude, pos.coords.longitude], 10);
     }, () => {});
 
+    map.on('moveend', () => debounceLoadPins());
     loadPins();
+}
+
+function debounceLoadPins() {
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => loadPins(currentFilter), 300);
 }
 
 function loadPins(userFilter) {
     const bounds = map.getBounds();
     const center = bounds.getCenter();
-    
-    let url = `/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=500`;
+    const radius = document.getElementById('radius-slider').value;
+
+    let url = `/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`;
     {% if user %}
     if (userFilter === 'my') url += `&user_id={{ user.id }}`;
     {% endif %}
@@ -47,16 +91,40 @@ function loadPins(userFilter) {
         .then(r => r.json())
         .then(data => {
             markersLayer.clearLayers();
+            if (heatLayer) map.removeLayer(heatLayer);
+
             const features = data.features || [];
-            
+
             if (!features.length) {
                 L.marker([center.lat, center.lng])
-                    .bindPopup('<div style="text-align:center;color:#666">No wine pins in this area yet.<br><a href="/wine/add" style="color:#e98844">Add one!</a></div>')
+                    .bindPopup('<div style="text-align:center;color:#666">No wine pins in this area.<br><a href="/wine/add" style="color:#e98844">Add one!</a></div>')
                     .addTo(markersLayer);
                 return;
             }
 
-            features.forEach(f => {
+            // Filter by type
+            const typeFilter = document.getElementById('type-filter').value;
+            const filtered = typeFilter ? features.filter(f => f.properties.wine_type === typeFilter) : features;
+
+            if (currentMapMode === 'heat') {
+                // Load heatmap
+                fetch(`/api/locations/heatmap${typeFilter ? '?wine_type=' + typeFilter : ''}`)
+                    .then(r => r.json())
+                    .then(heatData => {
+                        if (heatData.points.length) {
+                            heatLayer = L.heatLayer(heatData.points, {
+                                radius: 30,
+                                blur: 20,
+                                maxZoom: 10,
+                                max: 1.0,
+                                gradient: {0.2: '#6366f1', 0.5: '#e98844', 0.8: '#ef4444'}
+                            }).addTo(map);
+                        }
+                    });
+                return;
+            }
+
+            filtered.forEach(f => {
                 const coords = f.geometry.coordinates;
                 const p = f.properties;
                 const icon = L.divIcon({
@@ -83,18 +151,36 @@ function loadPins(userFilter) {
         });
 }
 
-let currentFilter = 'all';
+function setMapMode(mode) {
+    currentMapMode = mode;
+    document.getElementById('mode-pins').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (mode === 'pins' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    document.getElementById('mode-heat').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (mode === 'heat' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    loadPins(currentFilter);
+}
+
 function toggleFilter(filter) {
     currentFilter = filter;
-    document.getElementById('filter-my').className = 'bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium transition ' +
-        (filter === 'my' ? 'bg-wine-600 text-white border-wine-500' : 'hover:bg-neutral-800');
-    document.getElementById('filter-all').className = 'bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium transition ' +
-        (filter === 'all' ? 'bg-wine-600 text-white border-wine-500' : 'hover:bg-neutral-800');
+    document.getElementById('filter-my').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (filter === 'my' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    document.getElementById('filter-all').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (filter === 'all' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
     loadPins(filter);
 }
 
-// Reload pins when map stops moving
-map?.on('moveend', () => loadPins(currentFilter));
+function findNearMe() {
+    if (!navigator.geolocation) {
+        alert('Geolocation not available');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 12);
+        loadPins(currentFilter);
+    }, () => {
+        alert('Could not get your location');
+    });
+}
 
 document.addEventListener('DOMContentLoaded', initMap);
 </script>

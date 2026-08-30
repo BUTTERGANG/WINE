@@ -1,0 +1,46 @@
+{% if profile and profile.has_data %}
+<div>
+    <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">🧠</span>
+        <h3 class="font-semibold">Your Taste Profile</h3>
+    </div>
+    <p class="text-neutral-300 text-sm mb-3 italic">{{ profile.palette_summary }}</p>
+
+    <div class="grid grid-cols-4 gap-2 text-sm mb-3">
+        <div class="bg-neutral-800 rounded-lg p-2 text-center">
+            <div class="font-bold text-wine-400">{{ profile.total_tastings }}</div>
+            <div class="text-neutral-500 text-xs">Tastings</div>
+        </div>
+        <div class="bg-neutral-800 rounded-lg p-2 text-center">
+            <div class="font-bold text-wine-400">{{ profile.avg_rating }}</div>
+            <div class="text-neutral-500 text-xs">Avg</div>
+        </div>
+        <div class="bg-neutral-800 rounded-lg p-2 text-center">
+            <div class="font-bold text-wine-400 capitalize truncate">{{ profile.favorite_type or '-' }}</div>
+            <div class="text-neutral-500 text-xs">Best Type</div>
+        </div>
+        <div class="bg-neutral-800 rounded-lg p-2 text-center">
+            <div class="font-bold text-wine-400 truncate">{{ profile.favorite_varietal or '-' }}</div>
+            <div class="text-neutral-500 text-xs">Best Varietal</div>
+        </div>
+    </div>
+
+    {% if profile.top_wines %}
+    <div class="flex items-center gap-1 text-xs text-neutral-500 mt-2">
+        <span>🏆</span>
+        <span>Top wines:</span>
+        {% for w in profile.top_wines[:3] %}
+        <a href="/api/wines/{{ w.id }}" class="text-wine-400 hover:underline ml-1">{{ w.display_name }}</a>{% if not loop.last %},{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div>
+    <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">🧠</span>
+        <h3 class="font-semibold">Your Taste Profile</h3>
+    </div>
+    <p class="text-neutral-500 text-sm">No tasting data yet. <a href="/wine/add" class="text-wine-400 hover:underline">Start logging</a> to build your palate profile!</p>
+</div>
+{% endif %}
