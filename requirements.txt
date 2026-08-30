@@ -12,6 +12,7 @@ aiofiles>=23.2.1
 sqlalchemy>=2.0.25
 sqlmodel>=0.0.14
 aiosqlite>=0.19.0
+asyncpg>=0.29.0  # async PostgreSQL driver (Replit / production)
 
 # Auth
 bcrypt>=4.1.2

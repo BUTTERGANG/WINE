@@ -1,10 +1,12 @@
 """Smoke tests — run against the running server via httpx."""
 
+import os
+
 import httpx
 import pytest
 
 
-BASE = "http://localhost:8002"
+BASE = os.environ.get("WINE_TEST_URL", "http://localhost:8002")
 
 
 class TestSmoke:

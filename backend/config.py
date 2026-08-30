@@ -1,9 +1,37 @@
 """WINE application configuration."""
 
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+
+
+def _normalize_db_url(url: str) -> str:
+    """Coerce a plain ``postgresql://`` URL into an async-capable one.
+
+    Replit provisions ``DATABASE_URL`` as a sync ``postgresql://…?sslmode=…``
+    string. SQLAlchemy's async engine needs the ``+asyncpg`` driver, and
+    asyncpg rejects the libpq-style ``sslmode`` query arg, so strip it.
+    """
+    if not url:
+        return url
+
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+
+    if url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+
+    if url.startswith("postgresql+asyncpg://"):
+        parts = urlsplit(url)
+        query = [(k, v) for k, v in parse_qsl(parts.query) if k != "sslmode"]
+        url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+    return url
 
 
 class Settings(BaseSettings):
@@ -11,8 +39,15 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "change-me-in-production-wine-app-2026"
 
-    # Database
-    database_url: str = f"sqlite+aiosqlite:///{BASE_DIR}/data/wine.db"
+    # Database — defaults to local SQLite; DATABASE_URL env overrides.
+    database_url: str = f"sqlite+aiosqlite:///{DATA_DIR}/wine.db"
+    db_echo: bool = False  # log every SQL statement (very noisy)
+
+    # Port the web server binds (Replit forwards 5000 to the public webview).
+    port: int = 5000
+
+    # Auto-seed demo data on startup when the DB is empty.
+    auto_seed: bool = True
 
     # External APIs
     wine_db_api_key: str = ""
@@ -28,9 +63,18 @@ class Settings(BaseSettings):
     # Session
     session_ttl_hours: int = 24
 
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _fix_db_url(cls, v: str) -> str:
+        return _normalize_db_url(v)
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
 
 
 settings = Settings()
+
+# Ensure the SQLite directory exists before the engine opens the file.
+if settings.database_url.startswith("sqlite"):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)

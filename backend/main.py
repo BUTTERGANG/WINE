@@ -16,8 +16,14 @@ from backend.services.auth import get_current_user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Initialize database on startup, and seed demo data if empty."""
     await init_db()
+    if settings.auto_seed:
+        try:
+            from scripts.seed import seed
+            await seed()
+        except Exception as exc:  # pragma: no cover — seeding is best-effort
+            print(f"[startup] auto-seed skipped: {exc}")
     yield
 
 

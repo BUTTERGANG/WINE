@@ -1,8 +1,33 @@
 modules = ["python-3.12", "web", "nodejs-20"]
 
+run = "python -m uvicorn backend.main:app --host 0.0.0.0 --port 5000"
+
 [nix]
 channel = "stable-25_05"
 packages = ["cargo", "libiconv", "rustc"]
 
 [agent]
 expertMode = true
+
+[env]
+PORT = "5000"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[deployment]
+run = ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
+deploymentTarget = "cloudrun"
+
+[workflows]
+runButton = "Run WINE"
+
+[[workflows.workflow]]
+name = "Run WINE"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m uvicorn backend.main:app --host 0.0.0.0 --port 5000 --reload"
+waitForPort = 5000
