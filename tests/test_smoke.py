@@ -2,7 +2,6 @@
 
 import httpx
 import pytest
-import asyncio
 
 
 BASE = "http://localhost:8002"
@@ -45,6 +44,10 @@ class TestSmoke:
         resp = httpx.get(f"{BASE}/feed")
         assert resp.status_code == 200
 
+    def test_groups_page(self):
+        resp = httpx.get(f"{BASE}/groups")
+        assert resp.status_code == 200
+
     def test_search_api(self):
         resp = httpx.get(f"{BASE}/api/wines/search?q=Cabernet")
         assert resp.status_code == 200
@@ -57,6 +60,30 @@ class TestSmoke:
         data = resp.json()
         assert len(data["items"]) > 0
 
+    def test_personal_feed_no_auth(self):
+        resp = httpx.get(f"{BASE}/api/feed/personal")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 0  # No auth = no personal feed
+
+    def test_follow_status(self):
+        resp = httpx.get(f"{BASE}/api/follow/wine_lover/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "following" in data
+
+    def test_follow_counts(self):
+        resp = httpx.get(f"{BASE}/api/follows/wine_lover")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "following_count" in data
+
+    def test_groups_api(self):
+        resp = httpx.get(f"{BASE}/api/groups")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "groups" in data
+
     def test_locations_nearby(self):
         resp = httpx.get(f"{BASE}/api/locations/nearby?lat=38.4&lon=-122.4&radius=500")
         assert resp.status_code == 200
@@ -64,7 +91,6 @@ class TestSmoke:
         assert data["type"] == "FeatureCollection"
 
     def test_wine_detail(self):
-        # Get a wine from search first
         resp = httpx.get(f"{BASE}/api/wines/search?q=Margaux")
         data = resp.json()
         assert len(data["results"]) > 0
@@ -87,30 +113,27 @@ class TestSmoke:
         assert resp.status_code == 200
 
     def test_register_and_auth(self):
-        """Test the full auth cycle."""
+        import random
+        suffix = random.randint(10000, 99999)
         client = httpx.Client()
-        # Register
         resp = client.post(f"{BASE}/api/auth/register", data={
-            "username": "smoke_test_user",
-            "email": "smoke@test.com",
+            "username": f"testuser_{suffix}",
+            "email": f"test_{suffix}@test.com",
             "password": "testpass123"
         })
-        assert resp.status_code == 303 or resp.status_code == 200
+        assert resp.status_code in (200, 303), f"Register failed: {resp.status_code}"
 
-        # Try authenticated page
         resp = client.get(BASE)
         assert resp.status_code == 200
 
-        # Logout
         resp = client.post(f"{BASE}/api/auth/logout")
-        assert resp.status_code == 303 or resp.status_code == 200
+        assert resp.status_code in (200, 303)
 
-        # Login
         resp = client.post(f"{BASE}/api/auth/login", data={
-            "email": "smoke@test.com",
+            "email": f"test_{suffix}@test.com",
             "password": "testpass123"
         })
-        assert resp.status_code == 303 or resp.status_code == 200
+        assert resp.status_code in (200, 303)
 
     def test_404_handling(self):
         resp = httpx.get(f"{BASE}/profile/nonexistent_user_xyz")

@@ -9,6 +9,7 @@ from backend.database import get_db
 from backend.models.wine import Wine, TastingNote
 from backend.models.location import Location
 from backend.models.user import User
+from backend.models.community import Follow
 from backend.services.auth import get_current_user
 from backend.services.template import templates
 
@@ -96,14 +97,47 @@ async def profile_page(user_id: str, request: Request, db: AsyncSession = Depend
         select(TastingNote)
         .options(selectinload(TastingNote.wine), selectinload(TastingNote.location))
         .where(
-            TastingNote.user_id == user_id,
-            TastingNote.is_public == True if current_user and current_user.id != user_id else True,
+            TastingNote.user_id == profile_user.id,
+            TastingNote.is_public == True if not current_user or current_user.id != profile_user.id else True,
         )
         .order_by(TastingNote.created_at.desc())
         .limit(30)
     )
     result = await db.execute(stmt)
     notes = list(result.scalars().all())
+
+    # Stats
+    total_tastings = await db.execute(
+        select(func.count()).select_from(TastingNote).where(TastingNote.user_id == profile_user.id)
+    )
+    unique_wines = await db.execute(
+        select(func.count(func.distinct(TastingNote.wine_id)))
+        .where(TastingNote.user_id == profile_user.id)
+    )
+    unique_venues = await db.execute(
+        select(func.count(func.distinct(TastingNote.location_id)))
+        .where(
+            TastingNote.user_id == profile_user.id,
+            TastingNote.location_id.isnot(None),
+        )
+    )
+    follow_counts = await db.execute(
+        select(func.count()).select_from(Follow).where(Follow.followed_id == profile_user.id)
+    )
+    following_counts = await db.execute(
+        select(func.count()).select_from(Follow).where(Follow.follower_id == profile_user.id)
+    )
+
+    # Check if current user follows this profile
+    is_following = False
+    if current_user and current_user.id != profile_user.id:
+        f_result = await db.execute(
+            select(Follow).where(
+                Follow.follower_id == current_user.id,
+                Follow.followed_id == profile_user.id,
+            )
+        )
+        is_following = f_result.scalar_one_or_none() is not None
 
     return templates.TemplateResponse(
         "community/profile.html",
@@ -112,5 +146,18 @@ async def profile_page(user_id: str, request: Request, db: AsyncSession = Depend
             "profile_user": profile_user,
             "user": current_user,
             "notes": notes,
+            "total_tastings": total_tastings.scalar() or 0,
+            "unique_wines": unique_wines.scalar() or 0,
+            "unique_venues": unique_venues.scalar() or 0,
+            "followers_count": follow_counts.scalar() or 0,
+            "following_count": following_counts.scalar() or 0,
+            "is_following": is_following,
         },
     )
+
+
+@router.get("/groups", response_class=HTMLResponse)
+async def groups_list_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """List all public wine groups."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("community/groups.html", {"request": request, "user": user})

@@ -1,10 +1,15 @@
 """Wine routes — CRUD, search, scan."""
 
+import os
+import uuid
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config import settings
 from backend.database import get_db
 from backend.models.wine import Wine, TastingNote
 from backend.models.location import Location
@@ -14,6 +19,22 @@ from backend.services.wine_db import search_local_wines, search_external_wine_ap
 from backend.services.label_scanner import scan_label
 from backend.services.glass_scanner import analyze_glass
 from backend.services.template import templates
+
+
+UPLOAD_DIR = Path(settings.upload_dir)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def save_upload(file: UploadFile) -> str | None:
+    """Save an uploaded image and return the URL path."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        return None
+    ext = file.filename.split(".")[-1] if file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex[:12]}.{ext}"
+    filepath = UPLOAD_DIR / filename
+    content = await file.read()
+    filepath.write_bytes(content)
+    return f"/static/uploads/{filename}"
 
 router = APIRouter(prefix="/api/wines", tags=["wines"])
 
@@ -160,6 +181,7 @@ async def create_wine(
         food_pairing=form.get("food_pairing", ""),
         price_paid=float(form["price_paid"]) if form.get("price_paid") else None,
         notes=form.get("notes", ""),
+        photo_url=form.get("photo_url", ""),
         is_public=form.get("is_public", "1") == "1",
     )
     db.add(note)

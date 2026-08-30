@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">🍷 Wine Groups</h1>
+            <p class="text-sm text-neutral-500">Taste together, share together</p>
+        </div>
+        {% if user %}
+        <button onclick="showCreateGroup()" class="bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            + New Group
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Create Group Form (hidden) -->
+    <div id="create-group-form" class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 mb-6 hidden">
+        <h3 class="font-semibold mb-4">Create a Group</h3>
+        <form hx-post="/api/groups" hx-target="#group-list" hx-swap="innerHTML" hx-on::after-request="this.reset(); document.getElementById('create-group-form').classList.add('hidden')">
+            <div class="space-y-3">
+                <input type="text" name="name" placeholder="Group name" required
+                    class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+                <input type="text" name="description" placeholder="Description (optional)"
+                    class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+                <label class="flex items-center gap-2 text-sm text-neutral-400">
+                    <input type="checkbox" name="is_private" value="1" class="rounded border-neutral-700 bg-neutral-800">
+                    Private group
+                </label>
+                <button type="submit" class="bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                    Create Group
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Group List -->
+    <div id="group-list" hx-get="/api/groups" hx-trigger="load" hx-swap="innerHTML">
+        <div class="text-neutral-600 text-center py-8">Loading groups...</div>
+    </div>
+</div>
+
+<script>
+function showCreateGroup() {
+    document.getElementById('create-group-form').classList.toggle('hidden');
+}
+
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'group-list') {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            const groups = data.groups || [];
+            const container = document.getElementById('group-list');
+            if (!groups.length) {
+                container.innerHTML = '<div class="text-neutral-500 text-center py-8">No groups yet. Create the first one!</div>';
+                return;
+            }
+            container.innerHTML = groups.map(g => `
+                <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <a href="/api/groups/${g.id}" class="text-lg font-semibold text-wine-300 hover:text-wine-200">${g.name}</a>
+                            ${g.description ? `<p class="text-sm text-neutral-400 mt-1">${g.description}</p>` : ''}
+                            <div class="flex items-center gap-3 mt-2 text-xs text-neutral-500">
+                                <span>👥 ${g.member_count} members</span>
+                                <span>📅 ${new Date(g.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) { console.error('Groups render error:', e); }
+    }
+});
+</script>
+{% endblock %}

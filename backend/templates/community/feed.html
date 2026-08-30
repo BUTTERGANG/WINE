@@ -2,8 +2,21 @@
 {% block title %}Feed{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-1">🍷 Community Feed</h1>
-    <p class="text-neutral-500 text-sm mb-6">See what others are drinking</p>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">🍷 Community Feed</h1>
+            <p class="text-sm text-neutral-500">What everyone's drinking</p>
+        </div>
+        <!-- Feed toggle -->
+        {% if user %}
+        <div class="flex bg-neutral-900 rounded-lg p-0.5 border border-neutral-800">
+            <button id="feed-global" class="px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition"
+                    onclick="switchFeed('global')">🌍 Global</button>
+            <button id="feed-personal" class="px-3 py-1.5 rounded-md text-xs text-neutral-400 hover:text-white transition"
+                    onclick="switchFeed('personal')">👥 Following</button>
+        </div>
+        {% endif %}
+    </div>
 
     <div id="feed-page" 
          hx-get="/api/feed?limit=50"
@@ -14,41 +27,56 @@
 </div>
 
 <script>
+function switchFeed(mode) {
+    const url = mode === 'personal' ? '/api/feed/personal?limit=50' : '/api/feed?limit=50';
+    document.getElementById('feed-global').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (mode === 'global' ? 'bg-wine-600 text-white' : 'text-neutral-400 hover:text-white');
+    document.getElementById('feed-personal').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+        (mode === 'personal' ? 'bg-wine-600 text-white' : 'text-neutral-400 hover:text-white');
+
+    fetch(url)
+        .then(r => r.json())
+        .then(renderFeed)
+        .catch(() => {});
+}
+
+function renderFeed(data) {
+    const items = data.items || [];
+    const container = document.getElementById('feed-page');
+    if (!items.length) {
+        container.innerHTML = '<div class="text-neutral-500 text-center py-8">No tastings yet. Start by following some people!</div>';
+        return;
+    }
+    container.innerHTML = items.map(item => `
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">
+            <div class="flex items-start gap-3">
+                <a href="/profile/${item.user_id}" class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-sm font-bold flex-shrink-0 hover:bg-wine-600 transition">
+                    ${item.username[0].toUpperCase()}
+                </a>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <a href="/profile/${item.user_id}" class="font-medium text-sm hover:text-wine-300">${item.username}</a>
+                        <span class="text-neutral-600">·</span>
+                        <span class="text-xs text-neutral-500">${new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <a href="/api/wines/${item.wine_id}" class="block text-lg font-semibold text-wine-300 hover:text-wine-200 mt-1">
+                        ${item.wine_name}
+                    </a>
+                    <div class="flex items-center gap-3 mt-1 text-sm">
+                        <span class="text-yellow-500">${'★'.repeat(item.rating)}${'☆'.repeat(5 - item.rating)}</span>
+                        ${item.location_name ? `<span class="text-neutral-400">📍 ${item.location_name}</span>` : ''}
+                    </div>
+                    ${item.notes ? `<p class="text-sm text-neutral-500 mt-2 italic">"${item.notes}"</p>` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
 document.body.addEventListener('htmx:afterSwap', function(evt) {
     if (evt.detail.target && evt.detail.target.id === 'feed-page') {
-        try {
-            const data = JSON.parse(evt.detail.xhr.responseText);
-            const items = data.items || [];
-            const container = document.getElementById('feed-page');
-            if (!items.length) {
-                container.innerHTML = '<div class="text-neutral-600 text-center py-8">No tastings yet. The feed is waiting for you!</div>';
-                return;
-            }
-            container.innerHTML = items.map(item => `
-                <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">
-                    <div class="flex items-start gap-3">
-                        <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                            ${item.username[0].toUpperCase()}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <a href="/profile/${item.user_id}" class="font-medium text-sm hover:text-wine-300">${item.username}</a>
-                                <span class="text-neutral-600">·</span>
-                                <span class="text-xs text-neutral-500">${new Date(item.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <a href="/api/wines/${item.wine_id}" class="block text-lg font-semibold text-wine-300 hover:text-wine-200 mt-1">
-                                ${item.wine_name}
-                            </a>
-                            <div class="flex items-center gap-3 mt-1 text-sm">
-                                <span class="text-yellow-500">${'★'.repeat(item.rating)}${'☆'.repeat(5 - item.rating)}</span>
-                                ${item.location_name ? `<span class="text-neutral-400">📍 ${item.location_name}</span>` : ''}
-                            </div>
-                            ${item.notes ? `<p class="text-sm text-neutral-500 mt-2 italic">"${item.notes}"</p>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        } catch(e) { console.error('Feed render error:', e); }
+        try { renderFeed(JSON.parse(evt.detail.xhr.responseText)); }
+        catch(e) { console.error('Feed render error:', e); }
     }
 });
 </script>

@@ -2,24 +2,45 @@
 {% block title %}{{ profile_user.display_name or profile_user.username }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
+    <!-- Profile card -->
     <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
-        <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center text-2xl font-bold">
+        <div class="flex items-start gap-4">
+            <div class="w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center text-2xl font-bold flex-shrink-0">
                 {{ (profile_user.display_name or profile_user.username)[:1]|upper }}
             </div>
-            <div>
+            <div class="flex-1">
                 <h1 class="text-2xl font-bold">{{ profile_user.display_name or profile_user.username }}</h1>
                 <p class="text-sm text-neutral-500">@{{ profile_user.username }}</p>
                 {% if profile_user.bio %}
                 <p class="text-sm text-neutral-400 mt-1">{{ profile_user.bio }}</p>
                 {% endif %}
-                <div class="flex gap-4 mt-2 text-sm text-neutral-400">
-                    <span>{{ notes|length }} tastings</span>
+
+                <!-- Stats row -->
+                <div class="flex gap-4 mt-3 text-sm">
+                    <span class="text-neutral-400"><strong class="text-wine-300">{{ total_tastings }}</strong> tastings</span>
+                    <span class="text-neutral-400"><strong class="text-wine-300">{{ unique_wines }}</strong> wines</span>
+                    <span class="text-neutral-400"><strong class="text-wine-300">{{ unique_venues }}</strong> venues</span>
+                    <span class="text-neutral-400"><strong class="text-wine-300">{{ followers_count }}</strong> followers</span>
+                    <span class="text-neutral-400"><strong class="text-wine-300">{{ following_count }}</strong> following</span>
                 </div>
+
+                <!-- Follow button -->
+                {% if user and user.id != profile_user.id %}
+                <button id="follow-btn"
+                        class="mt-3 px-4 py-1.5 rounded-lg text-sm font-medium transition
+                               {% if is_following %}bg-neutral-800 text-neutral-300 border border-neutral-700 hover:bg-neutral-700{% else %}bg-wine-600 text-white hover:bg-wine-500{% endif %}"
+                        hx-post="/api/follow/{{ profile_user.id }}"
+                        hx-headers='{"Content-Type": "application/x-www-form-urlencoded"}'
+                        hx-swap="none"
+                        onclick="toggleFollow(this)">
+                    {% if is_following %}Following{% else %}Follow{% endif %}
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
 
+    <!-- Tasting History -->
     <h2 class="text-lg font-semibold mt-8 mb-4">Tasting History</h2>
     <div class="space-y-3">
         {% if notes %}
@@ -35,6 +56,9 @@
                             {% if note.location %}
                             <span>📍 {{ note.location.name }}</span>
                             {% endif %}
+                            {% if note.photo_url %}
+                            <span class="text-xs text-neutral-500">📷</span>
+                            {% endif %}
                         </div>
                         {% if note.notes %}
                         <p class="text-sm text-neutral-500 mt-2">"{{ note.notes }}"</p>
@@ -49,4 +73,20 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function toggleFollow(btn) {
+    // Toggle UI immediately, HTMX handles the server call
+    const isFollowing = btn.classList.contains('bg-wine-600');
+    if (isFollowing) {
+        btn.classList.remove('bg-wine-600', 'text-white', 'hover:bg-wine-500');
+        btn.classList.add('bg-neutral-800', 'text-neutral-300', 'border', 'border-neutral-700', 'hover:bg-neutral-700');
+        btn.textContent = 'Follow';
+    } else {
+        btn.classList.remove('bg-neutral-800', 'text-neutral-300', 'border', 'border-neutral-700', 'hover:bg-neutral-700');
+        btn.classList.add('bg-wine-600', 'text-white', 'hover:bg-wine-500');
+        btn.textContent = 'Following';
+    }
+}
+</script>
 {% endblock %}

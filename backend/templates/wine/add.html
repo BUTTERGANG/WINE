@@ -147,6 +147,21 @@
             <label class="block text-sm text-neutral-400 mb-1">Notes</label>
             <textarea name="notes" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Any additional thoughts..."></textarea>
         </div>
+
+        <!-- Photo -->
+        <div>
+            <label class="block text-sm text-neutral-400 mb-1">📷 Photo</label>
+            <div class="border-2 border-dashed border-neutral-700 rounded-xl p-6 text-center cursor-pointer hover:border-wine-500 transition" id="photo-drop-zone" onclick="document.getElementById('photo-input').click()">
+                <div class="text-2xl mb-2">📸</div>
+                <p class="text-sm text-neutral-500">Add a photo of the bottle or glass</p>
+                <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto(this)">
+                <input type="hidden" name="photo_url" id="photo-url-input">
+            </div>
+            <div id="photo-preview" class="mt-2 hidden">
+                <img id="photo-img" class="h-32 rounded-lg object-cover border border-neutral-700">
+                <button type="button" onclick="removePhoto()" class="text-xs text-red-400 mt-1 hover:underline">Remove</button>
+            </div>
+        </div>
         <div>
             <label class="block text-xs text-neutral-500 mb-1">Food Pairing</label>
             <input type="text" name="food_pairing" placeholder="Grilled steak, roasted vegetables" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
@@ -241,5 +256,36 @@ document.getElementById('location-search').addEventListener('input', function() 
         .catch(() => {});
     }, 500);
 });
+
+// Photo upload
+function uploadPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    document.getElementById('photo-drop-zone').classList.add('hidden');
+    document.getElementById('photo-preview').classList.remove('hidden');
+    document.getElementById('photo-img').src = URL.createObjectURL(file);
+    
+    fetch('/api/upload/photo', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.url) {
+                document.getElementById('photo-url-input').value = data.url;
+            }
+        })
+        .catch(() => {
+            document.getElementById('photo-preview').classList.add('hidden');
+            document.getElementById('photo-drop-zone').classList.remove('hidden');
+        });
+}
+
+function removePhoto() {
+    document.getElementById('photo-url-input').value = '';
+    document.getElementById('photo-preview').classList.add('hidden');
+    document.getElementById('photo-drop-zone').classList.remove('hidden');
+    document.getElementById('photo-input').value = '';
+}
 </script>
 {% endblock %}

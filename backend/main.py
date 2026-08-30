@@ -41,6 +41,11 @@ static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+# Uploaded files
+uploads_dir = Path(settings.upload_dir)
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
 # Auth check middleware on page routes (skip for /api/auth)
 @app.middleware("http")
 async def auth_redirect(request: Request, call_next):
@@ -53,13 +58,14 @@ async def auth_redirect(request: Request, call_next):
 
 
 # Import and register routers
-from backend.routers import auth, wines, locations, community, pages
+from backend.routers import auth, wines, locations, community, pages, upload
 
 app.include_router(auth.router)
 app.include_router(wines.router)
 app.include_router(locations.router)
 app.include_router(community.router)
 app.include_router(pages.router)
+app.include_router(upload.router)
 
 
 @app.get("/health")
