@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     # External APIs
     wine_db_api_key: str = ""
     ocr_api_key: str = ""
+    google_maps_api_key: str = ""
 
     # Map tile URL (default: OpenStreetMap free tier)
     map_tile_url: str = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

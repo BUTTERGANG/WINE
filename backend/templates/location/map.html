@@ -10,6 +10,8 @@
                     onclick="toggleFilter('my')">📍 My</button>
             <button id="filter-all" class="px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition"
                     onclick="toggleFilter('all')">🌍 All</button>
+            <button id="filter-wineries" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
+                    onclick="toggleFilter('wineries')">🏘️ Wineries</button>
         </div>
         <!-- Map mode toggle -->
         <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
@@ -107,6 +109,15 @@ function loadMarkers() {
     const radius = document.getElementById('radius-slider').value;
     const typeFilter = document.getElementById('type-filter').value;
 
+    markersLayer.clearLayers();
+    if (heatLayer) map.removeLayer(heatLayer);
+
+    // Winery mode — load winery pins instead of tasting pins
+    if (userFilter === 'wineries') {
+        loadWineries(center, radius);
+        return;
+    }
+
     let url = `/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`;
     if (currentFilter === 'my' && MY_ID) url += `&user_id=${encodeURIComponent(MY_ID)}`;
 
@@ -163,11 +174,51 @@ function setMapMode(mode) {
 
 function toggleFilter(filter) {
     currentFilter = filter;
-    document.getElementById('filter-my').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
-        (filter === 'my' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
-    document.getElementById('filter-all').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
-        (filter === 'all' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    // Clear all highlights
+    document.getElementById('filter-my').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
+    document.getElementById('filter-all').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
+    document.getElementById('filter-wineries').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
+    // Highlight selected
+    const btn = document.getElementById(filter === 'my' ? 'filter-my' : filter === 'all' ? 'filter-all' : 'filter-wineries');
+    btn.className = 'px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition';
     loadPins(filter);
+}
+
+function loadWineries(center, radius) {
+    fetch(`/api/wineries/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`)
+        .then(r => r.json())
+        .then(data => {
+            const features = data.features || [];
+            if (!features.length) {
+                L.marker([center.lat, center.lng])
+                    .bindPopup('<div style="text-align:center;color:#666">No wineries found in this area.<br><a href="/wineries" style="color:#e98844">Import some!</a></div>')
+                    .addTo(markersLayer);
+                return;
+            }
+            features.forEach(f => {
+                const coords = f.geometry.coordinates;
+                const p = f.properties;
+                const icon = L.divIcon({
+                    className: 'wine-pin',
+                    html: '<div style="background:#6b4e3a!important"></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24],
+                });
+                L.marker([coords[1], coords[0]], { icon })
+                    .bindPopup(`
+                        <div style="min-width:180px">
+                            <div style="font-weight:600;margin-bottom:4px">🏘️ ${p.name}</div>
+                            ${p.address ? `<div style="font-size:11px;color:#999">${p.address}</div>` : ''}
+                            ${p.tasting_count ? `<div style="font-size:12px;color:#e98844;margin-top:4px">🍷 ${p.tasting_count} tastings here</div>` : ''}
+                            ${p.website ? `<div style="font-size:11px;color:#777;margin-top:2px"><a href="${p.website}" target="_blank" style="color:#e98844">Website →</a></div>` : ''}
+                            <div style="margin-top:6px">
+                                <a href="/api/wineries/${p.id}" style="color:#e98844;font-size:12px">View winery →</a>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(markersLayer);
+            });
+        });
 }
 
 function findNearMe() {

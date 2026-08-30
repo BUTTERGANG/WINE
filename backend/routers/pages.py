@@ -197,53 +197,11 @@ async def groups_list_page(request: Request, db: AsyncSession = Depends(get_db))
     return templates.TemplateResponse("community/groups.html", {"request": request, "user": user})
 
 
-@router.get("/group/{group_id}", response_class=HTMLResponse)
-async def group_detail_page(group_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Group detail page."""
-    result = await db.execute(select(Group).where(Group.id == group_id))
-    group = result.scalar_one_or_none()
-    if not group:
-        return _not_found(request)
-
+@router.get("/wineries", response_class=HTMLResponse)
+async def wineries_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Discover and search wineries."""
     user = await get_current_user(request, db)
-
-    members = await db.execute(
-        select(User)
-        .join(GroupMember, GroupMember.user_id == User.id)
-        .where(GroupMember.group_id == group_id)
-    )
-    member_list = members.scalars().all()
-
-    member_ids = [m.id for m in member_list]
-    notes = []
-    if member_ids:
-        stmt = (
-            select(TastingNote)
-            .options(
-                selectinload(TastingNote.wine),
-                selectinload(TastingNote.user),
-                selectinload(TastingNote.location),
-            )
-            .where(TastingNote.user_id.in_(member_ids), TastingNote.is_public == True)
-            .order_by(TastingNote.created_at.desc())
-            .limit(30)
-        )
-        result = await db.execute(stmt)
-        notes = list(result.scalars().all())
-
-    is_member = bool(user and any(m.id == user.id for m in member_list))
-
-    return templates.TemplateResponse(
-        "community/group_detail.html",
-        {
-            "request": request,
-            "group": group,
-            "user": user,
-            "members": member_list,
-            "notes": notes,
-            "is_member": is_member,
-        },
-    )
+    return templates.TemplateResponse("location/wineries.html", {"request": request, "user": user})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

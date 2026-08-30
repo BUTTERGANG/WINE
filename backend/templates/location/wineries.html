@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Wineries{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">🏘️ Wineries</h1>
+            <p class="text-sm text-neutral-500">Discover wineries and see what people are drinking there</p>
+        </div>
+        {% if user %}
+        <button onclick="showImportForm()" class="bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            + Import Wineries
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Search -->
+    <div class="relative mb-6">
+        <input type="text" id="winery-search" placeholder="Search wineries by name, region..."
+            class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 pl-10 text-sm focus:border-wine-500 focus:outline-none"
+            oninput="searchWineries(this.value)"
+            autocomplete="off">
+        <span class="absolute left-3 top-3 text-neutral-500">🔍</span>
+        <div id="winery-results" class="mt-2 space-y-2"></div>
+    </div>
+
+    <!-- Import form -->
+    <div id="import-form" class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 mb-6 hidden">
+        <h3 class="font-semibold mb-4">Import Wineries</h3>
+        <p class="text-sm text-neutral-500 mb-4">Search OpenStreetMap for wineries near a location or by name.</p>
+        <form hx-post="/api/wineries/import" hx-target="#import-result" hx-swap="innerHTML" class="space-y-3">
+            <input type="text" name="query" placeholder="Region or winery name (e.g. Napa Valley)" 
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+            <div class="grid grid-cols-2 gap-3">
+                <input type="number" name="lat" step="0.0001" placeholder="Latitude (optional)" 
+                    class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+                <input type="number" name="lon" step="0.0001" placeholder="Longitude (optional)"
+                    class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-neutral-500">Radius (km): <span id="import-radius-label">100</span></label>
+                <input type="range" name="radius" min="10" max="500" value="100" 
+                    class="w-full accent-wine-500"
+                    oninput="document.getElementById('import-radius-label').textContent=this.value">
+            </div>
+            <button type="submit" class="bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                🔍 Find & Import
+            </button>
+        </form>
+        <div id="import-result" class="mt-3"></div>
+    </div>
+</div>
+
+<script>
+let searchTimer;
+
+function searchWineries(q) {
+    clearTimeout(searchTimer);
+    if (q.length < 1) {
+        document.getElementById('winery-results').innerHTML = '';
+        return;
+    }
+    searchTimer = setTimeout(() => {
+        fetch('/api/wineries/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                const items = data.results || [];
+                const container = document.getElementById('winery-results');
+                if (!items.length) {
+                    container.innerHTML = '<div class="text-neutral-600 text-sm text-center py-4">No wineries found. Try importing from the region!</div>';
+                    return;
+                }
+                container.innerHTML = items.map(w => `
+                    <a href="/api/wineries/${w.id || '#'}" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition ${!w.id ? 'opacity-60' : ''}">
+                        <div class="flex items-start gap-3">
+                            <div class="text-2xl">🏘️</div>
+                            <div>
+                                <div class="font-medium">${w.name} ${!w.local ? '<span class="text-xs text-neutral-500">(not imported)</span>' : ''}</div>
+                                ${w.address ? `<div class="text-xs text-neutral-500 mt-0.5">${w.address.slice(0, 100)}</div>` : ''}
+                                ${w.description ? `<div class="text-xs text-neutral-600 mt-1">${w.description.slice(0, 120)}</div>` : ''}
+                                ${w.website ? `<div class="text-xs text-neutral-500 mt-1">🔗 ${w.website}</div>` : ''}
+                            </div>
+                        </div>
+                        ${w.id ? `<div class="mt-2 text-right"><span class="text-xs text-wine-400">View winery →</span></div>` : ''}
+                    </a>
+                `).join('');
+            });
+    }, 300);
+}
+
+function showImportForm() {
+    document.getElementById('import-form').classList.toggle('hidden');
+}
+
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'import-result') {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            document.getElementById('import-result').innerHTML = 
+                `<div class="text-sm text-green-400 mt-2">✅ Imported ${data.imported} wineries (${data.skipped} skipped, ${data.found} found)</div>`;
+        } catch(e) {
+            // Non-JSON response
+        }
+    }
+});
+</script>
+{% endblock %}

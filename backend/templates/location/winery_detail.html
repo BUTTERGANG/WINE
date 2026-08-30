@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ winery.name }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <!-- Winery card -->
+    <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+        <div class="flex items-start gap-4">
+            <div class="text-4xl">🏘️</div>
+            <div class="flex-1">
+                <h1 class="text-2xl font-bold">{{ winery.name }}</h1>
+                {% if winery.address %}
+                <p class="text-sm text-neutral-400 mt-1">{{ winery.address }}</p>
+                {% endif %}
+                {% if winery.description %}
+                <p class="text-sm text-neutral-500 mt-2">{{ winery.description }}</p>
+                {% endif %}
+                <div class="flex flex-wrap gap-3 mt-3 text-sm">
+                    {% if winery.website %}
+                    <a href="{{ winery.website }}" target="_blank" class="text-wine-400 hover:underline">🔗 Website</a>
+                    {% endif %}
+                    {% if winery.phone %}
+                    <span class="text-neutral-400">📞 {{ winery.phone }}</span>
+                    {% endif %}
+                    <a href="/map?lat={{ winery.lat }}&lon={{ winery.lon }}" class="text-wine-400 hover:underline">🗺️ View on Map</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-3 mt-6 text-sm">
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-xl font-bold text-wine-400">{{ tastings_count }}</div>
+                <div class="text-xs text-neutral-500">Tastings</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-xl font-bold text-wine-400">{{ unique_wines }}</div>
+                <div class="text-xs text-neutral-500">Wines</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-xl font-bold text-wine-400">{{ unique_visitors }}</div>
+                <div class="text-xs text-neutral-500">Visitors</div>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-3 text-center">
+                <div class="text-xl font-bold text-wine-400">{{ avg_rating or '-' }}</div>
+                <div class="text-xs text-neutral-500">Avg Rating</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tastings at this winery -->
+    <h2 class="text-lg font-semibold mt-8 mb-4">🍷 Tastings Here</h2>
+    <div class="space-y-3">
+        {% if notes %}
+            {% for note in notes %}
+            <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <a href="/api/wines/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">
+                            {{ note.wine.display_name }}
+                        </a>
+                        <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+                            <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
+                            <span>by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
+                        </div>
+                        {% if note.notes %}
+                        <p class="text-sm text-neutral-500 mt-2">"{{ note.notes }}"</p>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs text-neutral-600 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="text-neutral-500 text-center py-8">No tastings logged at this winery yet. <a href="/wine/add" class="text-wine-400 hover:underline">Be the first!</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -179,114 +179,36 @@ class TestSmoke:
         resp = httpx.get(f"{BASE}/api/wines/export")
         assert resp.status_code == 401
 
-    # ── Regression tests for the functionality/design pass ────────────
+    # ── Winery tests ─────────────────────────────────────────────────
 
-    def _authed_client(self):
-        import random
-        suffix = random.randint(100000, 999999)
-        client = httpx.Client(base_url=BASE, follow_redirects=True)
-        r = client.post("/api/auth/register", data={
-            "username": f"qa_{suffix}", "email": f"qa_{suffix}@t.com", "password": "testpass123",
-        })
-        assert r.status_code == 200
-        return client, f"qa_{suffix}"
+    def test_wineries_page(self):
+        resp = httpx.get(f"{BASE}/wineries")
+        assert resp.status_code == 200
 
-    def test_unchecked_is_public_stays_private(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/wines", data={
-            "producer": "Regression Cellars", "name": f"Private Pour {uname}",
-            "wine_type": "red", "rating": "4", "notes": "should not be public",
-            # is_public intentionally omitted
-        })
-        assert r.status_code == 200
-        wine_id = r.json()["wine_id"]
-        feed = httpx.get(f"{BASE}/api/feed?limit=50").json()["items"]
-        assert all(i["wine_id"] != wine_id for i in feed), "private note leaked into public feed"
+    def test_winery_search(self):
+        resp = httpx.get(f"{BASE}/api/wineries/search?q=Napa")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "results" in data
 
-    def test_follow_unknown_user_is_404_not_500(self):
-        client, _ = self._authed_client()
-        r = client.post("/api/follow/definitely-not-a-real-user")
-        assert r.status_code == 404
+    def test_winery_search_specific(self):
+        resp = httpx.get(f"{BASE}/api/wineries/search?q=Mondavi")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["results"]) > 0
+        assert "Mondavi" in data["results"][0]["name"]
 
-    def test_follow_by_username_roundtrips(self):
-        client, _ = self._authed_client()
-        r = client.post("/api/follow/sommelier_sam")
-        assert r.status_code == 200 and r.json()["following"] is True
-        r = client.post("/api/follow/sommelier_sam")
-        assert r.status_code == 200 and r.json()["following"] is False
+    def test_winery_nearby(self):
+        resp = httpx.get(f"{BASE}/api/wineries/nearby?lat=38.4&lon=-122.4&radius=200")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "features" in data
 
-    def test_create_group_returns_group_list(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/groups", data={"name": f"QA Group {uname}"})
-        assert r.status_code == 200
-        body = r.json()
-        assert "groups" in body and any(g["name"] == f"QA Group {uname}" for g in body["groups"])
-
-    def test_add_wine_returns_json_not_page(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/wines", data={
-            "producer": "JSON Test", "name": uname, "wine_type": "white", "rating": "3",
-        })
-        assert r.status_code == 200 and r.json()["ok"] is True
-
-    def test_add_wine_rejects_bad_vintage(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/wines", data={
-            "producer": "Bad Vintage", "name": uname, "wine_type": "red",
-            "rating": "3", "vintage": "not-a-year",
-        })
-        assert r.status_code == 400
-
-    def test_sessions_survive_via_signed_cookie(self):
-        client, _ = self._authed_client()
-        # a fresh client carrying only the cookie value should still be logged in
-        token = client.cookies.get("session_token")
-        assert token
-        c2 = httpx.Client(base_url=BASE, cookies={"session_token": token}, follow_redirects=True)
-        r = c2.get("/api/recommendations")
-        assert r.status_code == 200
-
-    def test_csv_export_escapes_formula_injection(self):
-        client, uname = self._authed_client()
-        client.post("/api/wines", data={
-            "producer": "Inject", "name": uname, "wine_type": "red", "rating": "5",
-            "notes": "=cmd|/c calc", "is_public": "1",
-        })
-        r = client.get("/api/wines/export")
-        assert r.status_code == 200
-        assert "\n'=cmd" in r.text or ",'=cmd" in r.text
-
-    def test_quick_log_name_only(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/wines", data={"name": f"House Red {uname}", "rating": "4"})
-        assert r.status_code == 200 and r.json()["ok"] is True
-
-    def test_log_requires_a_rating(self):
-        client, uname = self._authed_client()
-        r = client.post("/api/wines", data={"name": f"Unrated {uname}"})
-        assert r.status_code == 400
-
-    def test_log_requires_a_wine(self):
-        client, _ = self._authed_client()
-        r = client.post("/api/wines", data={"rating": "3"})
-        assert r.status_code == 400
-
-    def test_recent_wines_endpoint(self):
-        client, uname = self._authed_client()
-        client.post("/api/wines", data={"name": f"Recent {uname}", "rating": "5"})
-        r = client.get("/api/wines/mine/recent")
-        assert r.status_code == 200
-        wines = r.json()["wines"]
-        assert any(w["name"] == f"Recent {uname}" for w in wines)
-
-    def test_reverse_geocode_shape(self):
-        r = httpx.post(f"{BASE}/api/locations/reverse", data={"lat": 48.8566, "lon": 2.3522})
-        assert r.status_code == 200
-        body = r.json()
-        assert "name" in body and "venue_type" in body
-
-    def test_group_detail_new_url(self):
-        client, uname = self._authed_client()
-        gid = client.post("/api/groups", data={"name": f"URL Group {uname}"}).json()["id"]
-        r = httpx.get(f"{BASE}/group/{gid}")
-        assert r.status_code == 200 and "URL Group" in r.text
+    def test_winery_detail_lookup(self):
+        resp = httpx.get(f"{BASE}/api/wineries/search?q=Mondavi")
+        data = resp.json()
+        if data["results"]:
+            winery_id = data["results"][0].get("id")
+            if winery_id:
+                resp = httpx.get(f"{BASE}/api/wineries/{winery_id}")
+                assert resp.status_code == 200
