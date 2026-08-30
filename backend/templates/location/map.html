@@ -49,28 +49,43 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
-let map;
+let theMap = null;
 let markersLayer;
+let clusterGroup;
 let heatLayer;
 let currentMapMode = 'pins';
 let currentFilter = 'all';
 let loadTimer;
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
 
 function initMap() {
-    map = L.map('wine-map').setView([40, -95], 4);
+    theMap = L.map('wine-map', { tap: true, touchZoom: true }).setView([40, -95], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18,
-    }).addTo(map);
+    }).addTo(theMap);
 
-    markersLayer = L.layerGroup().addTo(map);
+    markersLayer = L.layerGroup().addTo(theMap);
+    clusterGroup = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 16,
+    });
+    theMap.addLayer(clusterGroup);
 
     navigator.geolocation?.getCurrentPosition(pos => {
-        map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+        theMap.setView([pos.coords.latitude, pos.coords.longitude], 10);
     }, () => {});
 
-    map.on('moveend', () => debounceLoadPins());
+    theMap.on('moveend', () => debounceLoadPins());
     loadPins();
 }
 
@@ -146,20 +161,22 @@ function loadMarkers() {
                 });
                 const photo = p.photo_url
                     ? `<img src="${esc(p.photo_url)}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px;margin-bottom:4px">` : '';
-                L.marker([coords[1], coords[0]], { icon })
-                    .bindPopup(
-                        '<div style="min-width:180px">' + photo +
-                        '<div style="font-weight:600;margin-bottom:4px">' + esc(p.wine_name) + '</div>' +
-                        '<div style="font-size:12px;color:#e6b800">' + stars(p.rating) + '</div>' +
-                        (p.location_id
-                            ? '<a href="/venue/' + encodeURIComponent(p.location_id) + '" style="font-size:12px;color:#e98844">' + esc(p.location_name) + '</a>'
-                            : '<div style="font-size:12px;color:#999">' + esc(p.location_name) + '</div>') +
-                        '<div style="font-size:11px;color:#777">by ' + esc(p.username) + '</div>' +
-                        (p.notes ? '<div style="font-size:11px;color:#888;margin-top:4px">“' + esc(p.notes) + '”</div>' : '') +
-                        '<div style="margin-top:6px"><a href="/wine/' + encodeURIComponent(p.wine_id) + '" style="color:#e98844;font-size:12px">View wine →</a></div>' +
-                        '</div>'
-                    )
-                    .addTo(markersLayer);
+                const locLink = p.location_id
+                    ? '<a href="/venue/' + encodeURIComponent(p.location_id) + '" style="display:inline-block;background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;margin-top:6px;text-decoration:none">📍 ' + esc(p.location_name) + ' →</a>'
+                    : '<div style="font-size:12px;color:#999;margin-top:4px">📍 ' + esc(p.location_name) + '</div>';
+                const marker = L.marker([coords[1], coords[0]], { icon });
+                marker.bindPopup(
+                    '<div style="min-width:180px">' + photo +
+                    '<div style="font-weight:600;margin-bottom:2px;font-size:14px">' + esc(p.wine_name) + '</div>' +
+                    '<div style="font-size:13px;color:#e6b800;margin-bottom:4px">' + stars(p.rating) + '</div>' +
+                    locLink +
+                    '<div style="font-size:11px;color:#777;margin-top:3px">by ' + esc(p.username) + '</div>' +
+                    (p.notes ? '<div style="font-size:11px;color:#888;margin-top:4px">"' + esc(p.notes) + '"</div>' : '') +
+                    '<div style="margin-top:6px;border-top:1px solid #333;padding-top:6px;text-align:center">' +
+                    '<a href="/wine/' + encodeURIComponent(p.wine_id) + '" style="color:#e98844;font-size:13px;font-weight:500;text-decoration:none">🍷 View wine →</a></div>' +
+                    '</div>'
+                );
+                clusterGroup.addLayer(marker);
             });
         })
         .catch(() => {});
@@ -206,19 +223,19 @@ function loadWineries(center, radius) {
                     iconSize: [24, 24],
                     iconAnchor: [12, 24],
                 });
-                L.marker([coords[1], coords[0]], { icon })
-                    .bindPopup(`
-                        <div style="min-width:180px">
-                            <div style="font-weight:600;margin-bottom:4px">🏘️ ${p.name}</div>
-                            ${p.address ? `<div style="font-size:11px;color:#999">${p.address}</div>` : ''}
-                            ${p.tasting_count ? `<div style="font-size:12px;color:#e98844;margin-top:4px">🍷 ${p.tasting_count} tastings here</div>` : ''}
-                            ${p.website ? `<div style="font-size:11px;color:#777;margin-top:2px"><a href="${p.website}" target="_blank" style="color:#e98844">Website →</a></div>` : ''}
-                            <div style="margin-top:6px">
-                                <a href="/venue/${p.id}" style="color:#e98844;font-size:12px">View winery →</a>
-                            </div>
+                const marker = L.marker([coords[1], coords[0]], { icon });
+                marker.bindPopup(`
+                    <div style="min-width:200px">
+                        <div style="font-weight:600;font-size:15px;margin-bottom:6px">🏘️ ${esc(p.name)}</div>
+                        ${p.address ? `<div style="font-size:12px;color:#999;margin-bottom:4px">${esc(p.address)}</div>` : ''}
+                        ${p.tasting_count ? `<div style="font-size:13px;color:#e98844;margin-bottom:4px">🍷 ${p.tasting_count} tastings here</div>` : ''}
+                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+                            ${p.website ? `<a href="${esc(p.website)}" target="_blank" style="background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;text-align:center">🔗 Website</a>` : ''}
+                            <a href="/venue/${p.id}" style="background:#e98844;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;text-align:center">🏘️ View winery →</a>
                         </div>
-                    `)
-                    .addTo(markersLayer);
+                    </div>
+                `);
+                clusterGroup.addLayer(marker);
             });
         });
 }

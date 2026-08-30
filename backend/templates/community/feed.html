@@ -43,6 +43,10 @@ function loadFeed(url, mode) {
         .catch(() => { feedContainer.innerHTML = '<div class="text-neutral-500 text-center py-8">Could not load the feed.</div>'; });
 }
 
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
+function fmtDate(t) { try { return new Date(t).toLocaleDateString(); } catch(e) { return ''; } }
+
 function renderFeed(items, mode) {
     if (!items.length) {
         feedContainer.innerHTML = mode === 'personal'
@@ -55,8 +59,8 @@ function renderFeed(items, mode) {
             ? '<img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover border border-neutral-800 flex-shrink-0">' : '';
         const loc = item.location_name
             ? (item.location_id
-                ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="text-neutral-400 hover:text-wine-300">📍 ' + esc(item.location_name) + '</a>'
-                : '<span class="text-neutral-400">📍 ' + esc(item.location_name) + '</span>')
+                ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="inline-flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-wine-300 hover:text-wine-200 px-3 py-1.5 rounded-lg text-sm font-medium transition mt-2">📍 ' + esc(item.location_name) + ' →</a>'
+                : '<span class="text-neutral-400 mt-1 block">📍 ' + esc(item.location_name) + '</span>')
             : '';
         const notes = item.notes ? '<p class="text-sm text-neutral-400 mt-2 italic">“' + esc(item.notes) + '”</p>' : '';
         return '' +
@@ -74,8 +78,8 @@ function renderFeed(items, mode) {
                   '<div class="flex-1 min-w-0">' +
                     '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="block text-lg font-display text-wine-300 hover:text-wine-200">' + esc(item.wine_name) + '</a>' +
                     '<div class="flex flex-wrap items-center gap-3 mt-1 text-sm">' +
-                      '<span class="text-yellow-500">' + stars(item.rating) + '</span>' + loc +
-                    '</div>' + notes +
+                      '<span class="text-yellow-500">' + stars(item.rating) + '</span>' +
+                    '</div>' + notes + loc +
                   '</div>' + photo +
                 '</div>' +
               '</div>' +

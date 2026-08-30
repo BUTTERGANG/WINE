@@ -61,7 +61,7 @@
                 : '';
             const loc = item.location_name
                 ? (item.location_id
-                    ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="hover:text-wine-300">📍 ' + esc(item.location_name) + '</a>'
+                    ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="inline-flex items-center gap-1 bg-neutral-800 hover:bg-neutral-700 text-wine-300 px-3 py-1.5 rounded-lg text-sm font-medium transition mt-1">📍 ' + esc(item.location_name) + ' →</a>'
                     : '<span>📍 ' + esc(item.location_name) + '</span>')
                 : '';
             const notes = item.notes
