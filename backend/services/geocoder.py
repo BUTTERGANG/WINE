@@ -1,18 +1,30 @@
 """Geocoding service — address to lat/lon via Nominatim."""
 
 import asyncio
+import time
 from typing import Optional
 
 import httpx
 
-# Nominatim rate limit: 1 request per second
+# Nominatim asks for <= 1 request/second. Serialize calls and only sleep
+# for the remainder of the 1s window since the previous call.
 _nominatim_lock = asyncio.Lock()
+_last_call = 0.0
+_MIN_INTERVAL = 1.1
+
+
+async def _throttle():
+    global _last_call
+    wait = _MIN_INTERVAL - (time.monotonic() - _last_call)
+    if wait > 0:
+        await asyncio.sleep(wait)
+    _last_call = time.monotonic()
 
 
 async def geocode_address(address: str) -> Optional[tuple[float, float, str]]:
     """Resolve an address to (lat, lon, display_name)."""
     async with _nominatim_lock:
-        await asyncio.sleep(1.1)  # Respect rate limit
+        await _throttle()
 
         try:
             async with httpx.AsyncClient(timeout=10) as client:
@@ -43,7 +55,7 @@ async def geocode_address(address: str) -> Optional[tuple[float, float, str]]:
 async def search_venues(query: str) -> list[dict]:
     """Search for venues (restaurants, wineries, bars) matching a query."""
     async with _nominatim_lock:
-        await asyncio.sleep(1.1)
+        await _throttle()
 
         try:
             async with httpx.AsyncClient(timeout=10) as client:

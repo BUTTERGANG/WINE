@@ -1,11 +1,7 @@
-"""Auth service — password hashing, session tokens."""
-
-import hashlib
-import os
-import secrets
-from datetime import datetime, timedelta
+"""Auth service — password hashing, signed session cookies."""
 
 import bcrypt
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,39 +15,34 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
 
 
-def generate_session_token() -> str:
-    return secrets.token_hex(32)
-
-
-# In-memory session store (dev only; swap to Redis or DB for prod)
-# Maps token -> (user_id, expiry)
-_session_store: dict[str, tuple[str, datetime]] = {}
+# Stateless signed-cookie sessions — survive restarts, no server-side store.
+_serializer = URLSafeTimedSerializer(settings.secret_key, salt="wine-session")
+_MAX_AGE = settings.session_ttl_hours * 3600
 
 
 async def create_session(user_id: str) -> str:
-    token = generate_session_token()
-    expiry = datetime.utcnow() + timedelta(hours=settings.session_ttl_hours)
-    _session_store[token] = (user_id, expiry)
-    return token
+    """Return a signed token embedding the user id."""
+    return _serializer.dumps(user_id)
 
 
 async def get_user_from_token(token: str, db: AsyncSession) -> User | None:
-    data = _session_store.get(token)
-    if not data:
-        return None
-    user_id, expiry = data
-    if datetime.utcnow() > expiry:
-        del _session_store[token]
+    try:
+        user_id = _serializer.loads(token, max_age=_MAX_AGE)
+    except (BadSignature, SignatureExpired):
         return None
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
 
 
-async def delete_session(token: str):
-    _session_store.pop(token, None)
+async def delete_session(token: str) -> None:
+    """No-op — logout clears the cookie client-side."""
+    return None
 
 
 async def get_current_user(request: Request, db: AsyncSession) -> User | None:
@@ -73,7 +64,7 @@ def get_session_cookie(token: str) -> dict:
         "key": "session_token",
         "value": token,
         "httponly": True,
-        "max_age": settings.session_ttl_hours * 3600,
+        "max_age": _MAX_AGE,
         "samesite": "lax",
         "path": "/",
     }

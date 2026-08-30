@@ -15,10 +15,7 @@
                 </div>
             </div>
             {% if user and not is_member and not group.is_private %}
-            <button class="bg-wine-600 hover:bg-wine-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                    hx-post="/api/groups/{{ group.id }}/join"
-                    hx-swap="none"
-                    onclick="this.textContent='Joined!'; this.classList.add('opacity-50'); this.disabled=true">
+            <button id="join-btn" class="bg-wine-600 hover:bg-wine-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
                 Join Group
             </button>
             {% endif %}
@@ -46,7 +43,7 @@
             <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
                 <div class="flex items-start justify-between">
                     <div>
-                        <a href="/api/wines/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">
+                        <a href="/wine/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">
                             {{ note.wine.display_name }}
                         </a>
                         <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
@@ -60,7 +57,7 @@
                         <p class="text-sm text-neutral-500 mt-2">"{{ note.notes }}"</p>
                         {% endif %}
                     </div>
-                    <span class="text-xs text-neutral-600 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+                    <span class="text-xs text-neutral-500 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
                 </div>
             </div>
             {% endfor %}
@@ -69,4 +66,19 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+(function () {
+    const btn = document.getElementById('join-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.textContent = 'Joining…';
+        fetch('/api/groups/{{ group.id }}/join', { method: 'POST' })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(function () { btn.textContent = 'Joined!'; setTimeout(() => window.location.reload(), 500); })
+            .catch(function () { btn.disabled = false; btn.textContent = 'Join Group'; });
+    });
+})();
+</script>
 {% endblock %}

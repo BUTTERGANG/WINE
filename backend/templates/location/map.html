@@ -77,78 +77,79 @@ function debounceLoadPins() {
     loadTimer = setTimeout(() => loadPins(currentFilter), 300);
 }
 
+const MY_ID = '{{ user.id if user else "" }}';
+
 function loadPins(userFilter) {
-    const bounds = map.getBounds();
-    const center = bounds.getCenter();
+    if (userFilter !== undefined) currentFilter = userFilter;
+    return currentMapMode === 'heat' ? loadHeat() : loadMarkers();
+}
+
+function loadHeat() {
+    markersLayer.clearLayers();
+    const typeFilter = document.getElementById('type-filter').value;
+    fetch(`/api/locations/heatmap${typeFilter ? '?wine_type=' + encodeURIComponent(typeFilter) : ''}`)
+        .then(r => r.json())
+        .then(data => {
+            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+            const points = data.points || [];
+            if (points.length) {
+                heatLayer = L.heatLayer(points, {
+                    radius: 30, blur: 20, maxZoom: 10, max: 1.0,
+                    gradient: { 0.2: '#6366f1', 0.5: '#e98844', 0.8: '#ef4444' },
+                }).addTo(map);
+            }
+        })
+        .catch(() => {});
+}
+
+function loadMarkers() {
+    const center = map.getBounds().getCenter();
     const radius = document.getElementById('radius-slider').value;
+    const typeFilter = document.getElementById('type-filter').value;
 
     let url = `/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`;
-    {% if user %}
-    if (userFilter === 'my') url += `&user_id={{ user.id }}`;
-    {% endif %}
+    if (currentFilter === 'my' && MY_ID) url += `&user_id=${encodeURIComponent(MY_ID)}`;
 
     fetch(url)
         .then(r => r.json())
         .then(data => {
             markersLayer.clearLayers();
-            if (heatLayer) map.removeLayer(heatLayer);
+            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
 
-            const features = data.features || [];
+            let features = data.features || [];
+            if (typeFilter) features = features.filter(f => f.properties.wine_type === typeFilter);
 
             if (!features.length) {
-                L.marker([center.lat, center.lng])
-                    .bindPopup('<div style="text-align:center;color:#666">No wine pins in this area.<br><a href="/wine/add" style="color:#e98844">Add one!</a></div>')
+                L.marker(center)
+                    .bindPopup('<div style="text-align:center">No wine pins in this area.<br><a href="/wine/add" style="color:#e98844">Add one!</a></div>')
                     .addTo(markersLayer);
                 return;
             }
 
-            // Filter by type
-            const typeFilter = document.getElementById('type-filter').value;
-            const filtered = typeFilter ? features.filter(f => f.properties.wine_type === typeFilter) : features;
-
-            if (currentMapMode === 'heat') {
-                // Load heatmap
-                fetch(`/api/locations/heatmap${typeFilter ? '?wine_type=' + typeFilter : ''}`)
-                    .then(r => r.json())
-                    .then(heatData => {
-                        if (heatData.points.length) {
-                            heatLayer = L.heatLayer(heatData.points, {
-                                radius: 30,
-                                blur: 20,
-                                maxZoom: 10,
-                                max: 1.0,
-                                gradient: {0.2: '#6366f1', 0.5: '#e98844', 0.8: '#ef4444'}
-                            }).addTo(map);
-                        }
-                    });
-                return;
-            }
-
-            filtered.forEach(f => {
+            features.forEach(f => {
                 const coords = f.geometry.coordinates;
                 const p = f.properties;
                 const icon = L.divIcon({
-                    className: 'wine-pin' + (p.user_id === '{{ user.id if user else "" }}' ? ' my-wine' : ''),
-                    html: '<div></div>',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 24],
+                    className: 'wine-pin' + (p.user_id === MY_ID ? ' my-wine' : ''),
+                    html: '<div></div>', iconSize: [24, 24], iconAnchor: [12, 24],
                 });
+                const photo = p.photo_url
+                    ? `<img src="${esc(p.photo_url)}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px;margin-bottom:4px">` : '';
                 L.marker([coords[1], coords[0]], { icon })
-                    .bindPopup(`
-                        <div style="min-width:180px">
-                            <div style="font-weight:600;margin-bottom:4px">${p.wine_name}</div>
-                            <div style="font-size:12px">${'★'.repeat(p.rating)}${'☆'.repeat(5-p.rating)}</div>
-                            <div style="font-size:12px;color:#999">${p.location_name}</div>
-                            <div style="font-size:11px;color:#777">by ${p.username}</div>
-                            ${p.notes ? `<div style="font-size:11px;color:#888;margin-top:4px">"${p.notes}"</div>` : ''}
-                            <div style="margin-top:6px">
-                                <a href="/api/wines/${p.wine_id}" style="color:#e98844;font-size:12px">View wine →</a>
-                            </div>
-                        </div>
-                    `)
+                    .bindPopup(
+                        '<div style="min-width:180px">' + photo +
+                        '<div style="font-weight:600;margin-bottom:4px">' + esc(p.wine_name) + '</div>' +
+                        '<div style="font-size:12px;color:#e6b800">' + stars(p.rating) + '</div>' +
+                        '<div style="font-size:12px;color:#999">' + esc(p.location_name) + '</div>' +
+                        '<div style="font-size:11px;color:#777">by ' + esc(p.username) + '</div>' +
+                        (p.notes ? '<div style="font-size:11px;color:#888;margin-top:4px">“' + esc(p.notes) + '”</div>' : '') +
+                        '<div style="margin-top:6px"><a href="/wine/' + encodeURIComponent(p.wine_id) + '" style="color:#e98844;font-size:12px">View wine →</a></div>' +
+                        '</div>'
+                    )
                     .addTo(markersLayer);
             });
-        });
+        })
+        .catch(() => {});
 }
 
 function setMapMode(mode) {
@@ -157,7 +158,7 @@ function setMapMode(mode) {
         (mode === 'pins' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
     document.getElementById('mode-heat').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
         (mode === 'heat' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
-    loadPins(currentFilter);
+    loadPins();
 }
 
 function toggleFilter(filter) {

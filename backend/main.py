@@ -3,15 +3,11 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.database import init_db, get_db
-from backend.services.auth import get_current_user
+from backend.database import init_db
 
 
 @asynccontextmanager
@@ -33,15 +29,6 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Static files
 static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
@@ -51,16 +38,6 @@ if static_dir.exists():
 uploads_dir = Path(settings.upload_dir)
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
-
-# Auth check middleware on page routes (skip for /api/auth)
-@app.middleware("http")
-async def auth_redirect(request: Request, call_next):
-    # Skip API routes and static files
-    if request.url.path.startswith(("/api/auth", "/static", "/api/wines/search", "/api/feed")):
-        return await call_next(request)
-    
-    response = await call_next(request)
-    return response
 
 
 # Import and register routers

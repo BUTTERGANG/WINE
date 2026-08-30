@@ -30,7 +30,7 @@
         <span>🏆</span>
         <span>Top wines:</span>
         {% for w in profile.top_wines[:3] %}
-        <a href="/api/wines/{{ w.id }}" class="text-wine-400 hover:underline ml-1">{{ w.display_name }}</a>{% if not loop.last %},{% endif %}
+        <a href="/wine/{{ w.id }}" class="text-wine-400 hover:underline ml-1">{{ w.display_name }}</a>{% if not loop.last %},{% endif %}
         {% endfor %}
     </div>
     {% endif %}

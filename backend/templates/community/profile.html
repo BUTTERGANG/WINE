@@ -26,13 +26,9 @@
 
                 <!-- Follow button -->
                 {% if user and user.id != profile_user.id %}
-                <button id="follow-btn"
+                <button id="follow-btn" data-following="{{ 'true' if is_following else 'false' }}"
                         class="mt-3 px-4 py-1.5 rounded-lg text-sm font-medium transition
-                               {% if is_following %}bg-neutral-800 text-neutral-300 border border-neutral-700 hover:bg-neutral-700{% else %}bg-wine-600 text-white hover:bg-wine-500{% endif %}"
-                        hx-post="/api/follow/{{ profile_user.id }}"
-                        hx-headers='{"Content-Type": "application/x-www-form-urlencoded"}'
-                        hx-swap="none"
-                        onclick="toggleFollow(this)">
+                               {% if is_following %}bg-neutral-800 text-neutral-200 border border-neutral-700 hover:bg-neutral-700{% else %}bg-wine-600 text-white hover:bg-wine-500{% endif %}">
                     {% if is_following %}Following{% else %}Follow{% endif %}
                 </button>
                 {% endif %}
@@ -57,25 +53,26 @@
         {% if notes %}
             {% for note in notes %}
             <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <a href="/api/wines/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">
-                            {{ note.wine.display_name }}
-                        </a>
-                        <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+                <div class="flex items-start gap-3">
+                    {% if note.photo_url %}
+                    <img src="{{ note.photo_url }}" alt="" loading="lazy" class="w-16 h-16 rounded-lg object-cover border border-neutral-800 flex-shrink-0">
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-2">
+                            <a href="/wine/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">
+                                {{ note.wine.display_name }}
+                            </a>
+                            <span class="text-xs text-neutral-500 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 mt-1 text-sm text-neutral-400">
                             <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
-                            {% if note.location %}
-                            <span>📍 {{ note.location.name }}</span>
-                            {% endif %}
-                            {% if note.photo_url %}
-                            <span class="text-xs text-neutral-500">📷</span>
-                            {% endif %}
+                            {% if note.location %}<span>📍 {{ note.location.name }}</span>{% endif %}
+                            {% if not note.is_public %}<span class="text-xs text-neutral-500">🔒 Private</span>{% endif %}
                         </div>
                         {% if note.notes %}
-                        <p class="text-sm text-neutral-500 mt-2">"{{ note.notes }}"</p>
+                        <p class="text-sm text-neutral-400 mt-2 italic">"{{ note.notes }}"</p>
                         {% endif %}
                     </div>
-                    <span class="text-xs text-neutral-600 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
                 </div>
             </div>
             {% endfor %}
@@ -86,18 +83,28 @@
 </div>
 
 <script>
-function toggleFollow(btn) {
-    // Toggle UI immediately, HTMX handles the server call
-    const isFollowing = btn.classList.contains('bg-wine-600');
-    if (isFollowing) {
-        btn.classList.remove('bg-wine-600', 'text-white', 'hover:bg-wine-500');
-        btn.classList.add('bg-neutral-800', 'text-neutral-300', 'border', 'border-neutral-700', 'hover:bg-neutral-700');
-        btn.textContent = 'Follow';
-    } else {
-        btn.classList.remove('bg-neutral-800', 'text-neutral-300', 'border', 'border-neutral-700', 'hover:bg-neutral-700');
-        btn.classList.add('bg-wine-600', 'text-white', 'hover:bg-wine-500');
-        btn.textContent = 'Following';
+(function () {
+    const btn = document.getElementById('follow-btn');
+    if (!btn) return;
+
+    function paint(following) {
+        btn.dataset.following = String(following);
+        btn.textContent = following ? 'Following' : 'Follow';
+        btn.className = 'mt-3 px-4 py-1.5 rounded-lg text-sm font-medium transition ' + (following
+            ? 'bg-neutral-800 text-neutral-200 border border-neutral-700 hover:bg-neutral-700'
+            : 'bg-wine-600 text-white hover:bg-wine-500');
     }
-}
+
+    btn.addEventListener('click', function () {
+        const wasFollowing = btn.dataset.following === 'true';
+        btn.disabled = true;
+        paint(!wasFollowing); // optimistic
+        fetch('/api/follow/{{ profile_user.id }}', { method: 'POST' })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(d => paint(!!d.following))
+            .catch(() => paint(wasFollowing))
+            .finally(() => { btn.disabled = false; });
+    });
+})();
 </script>
 {% endblock %}

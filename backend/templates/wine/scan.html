@@ -16,7 +16,7 @@
         <div class="border-2 border-dashed border-neutral-700 rounded-xl p-12 text-center cursor-pointer hover:border-wine-500 transition" id="drop-zone">
             <div class="text-4xl mb-3">🍾</div>
             <p class="text-neutral-400 mb-2">Take a photo of the bottle label</p>
-            <p class="text-xs text-neutral-600">or click to upload</p>
+            <p class="text-xs text-neutral-400">or click to upload</p>
             <input type="file" id="scan-input" accept="image/*" capture="environment" class="hidden"
                    onchange="uploadScan(this, 'bottle')">
         </div>
@@ -28,7 +28,7 @@
         <div class="border-2 border-dashed border-neutral-700 rounded-xl p-12 text-center cursor-pointer hover:border-wine-500 transition" id="drop-zone-glass">
             <div class="text-4xl mb-3">🥂</div>
             <p class="text-neutral-400 mb-2">Snap a photo of your poured glass</p>
-            <p class="text-xs text-neutral-600">We'll guess the wine from color and legs</p>
+            <p class="text-xs text-neutral-400">We'll guess the wine from color and legs</p>
             <input type="file" id="scan-input-glass" accept="image/*" capture="environment" class="hidden"
                    onchange="uploadScan(this, 'glass')">
         </div>
@@ -70,11 +70,11 @@ function uploadScan(input, mode) {
                 }
                 container.innerHTML = '<div class="text-sm text-neutral-400 mb-2">Select the right one:</div>' +
                     candidates.map(c => `
-                        <div class="bg-neutral-800 rounded-lg p-3 cursor-pointer hover:bg-neutral-700 transition"
-                             onclick="location.href='/wine/add?wine_id=${c.wine_id}'">
-                            <div class="font-medium">${c.display}</div>
-                            <div class="text-xs text-neutral-500">${c.region} · ${c.varietal || c.wine_type}</div>
-                        </div>
+                        <a class="block bg-neutral-800 rounded-lg p-3 hover:bg-neutral-700 transition"
+                           href="/wine/add?wine_id=${encodeURIComponent(c.wine_id)}">
+                            <div class="font-medium">${esc(c.display)}</div>
+                            <div class="text-xs text-neutral-400">${esc([c.region, c.varietal || c.wine_type].filter(Boolean).join(' · '))}</div>
+                        </a>
                     `).join('');
             } else {
                 const suggestions = data.suggestions || [];
@@ -87,15 +87,15 @@ function uploadScan(input, mode) {
                     <div class="bg-neutral-800 rounded-lg p-4">
                         <div class="text-sm text-neutral-400 mb-2">🧪 Glass Analysis</div>
                         <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div><span class="text-neutral-500">Type:</span> ${s.wine_type}</div>
-                            <div><span class="text-neutral-500">Legs:</span> ${s.legs?.legs || 'N/A'}</div>
-                            <div><span class="text-neutral-500">Opacity:</span> ${s.color_analysis?.opacity || 'N/A'}</div>
-                            <div><span class="text-neutral-500">Intensity:</span> ${s.color_analysis?.intensity || 'N/A'}</div>
+                            <div><span class="text-neutral-400">Type:</span> ${esc(s.wine_type)}</div>
+                            <div><span class="text-neutral-400">Legs:</span> ${esc(s.legs && s.legs.legs || 'N/A')}</div>
+                            <div><span class="text-neutral-400">Opacity:</span> ${esc(s.color_analysis && s.color_analysis.opacity || 'N/A')}</div>
+                            <div><span class="text-neutral-400">Intensity:</span> ${esc(s.color_analysis && s.color_analysis.intensity || 'N/A')}</div>
                         </div>
-                        ${s.likely_varietals?.length ? `
+                        ${s.likely_varietals && s.likely_varietals.length ? `
                             <div class="mt-2 text-sm">
-                                <span class="text-neutral-500">Likely varietals:</span>
-                                ${s.likely_varietals.map(v => `<span class="bg-neutral-700 rounded px-2 py-0.5 ml-1 text-xs">${v}</span>`).join('')}
+                                <span class="text-neutral-400">Likely varietals:</span>
+                                ${s.likely_varietals.map(v => `<span class="bg-neutral-700 rounded px-2 py-0.5 ml-1 text-xs">${esc(v)}</span>`).join('')}
                             </div>
                         ` : ''}
                         <a href="/wine/add" class="mt-3 inline-block text-sm text-wine-400 hover:underline">Continue to add →</a>

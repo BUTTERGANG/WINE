@@ -76,7 +76,8 @@ async def get_nearby_locations(
                 "user_id": user.id,
                 "location_name": loc.name,
                 "location_id": loc.id,
-                "notes": note.notes[:100] if note.notes else "",
+                "notes": note.notes[:140] if note.notes else "",
+                "photo_url": note.photo_url or "",
                 "created_at": note.created_at.isoformat(),
             },
         })
@@ -111,7 +112,7 @@ async def get_heatmap_data(
     rows = result.all()
 
     # Normalize ratings to 0.2–1.0 intensity, recency bonus
-    from datetime import datetime, timezone
+    from datetime import datetime
     now = datetime.utcnow()
 
     points = []

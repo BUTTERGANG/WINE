@@ -1,17 +1,22 @@
 """Page routes — HTML pages rendered with Jinja2."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.database import get_db
 from backend.models.wine import Wine, TastingNote
 from backend.models.location import Location
 from backend.models.user import User
-from backend.models.community import Follow
+from backend.models.community import Follow, Group, GroupMember
 from backend.services.auth import get_current_user
 from backend.services.template import templates
+
+
+def _not_found(request: Request):
+    return templates.TemplateResponse("errors/404.html", {"request": request}, status_code=404)
 
 router = APIRouter(tags=["pages"])
 
@@ -57,10 +62,20 @@ async def map_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/wine/add", response_class=HTMLResponse)
-async def add_wine_page(request: Request, db: AsyncSession = Depends(get_db)):
+async def add_wine_page(
+    request: Request,
+    wine_id: str = Query("", description="Pre-fill the form from an existing wine"),
+    db: AsyncSession = Depends(get_db),
+):
     """Add a wine manually or via scan."""
     user = await get_current_user(request, db)
-    return templates.TemplateResponse("wine/add.html", {"request": request, "user": user})
+    prefill = None
+    if wine_id:
+        result = await db.execute(select(Wine).where(Wine.id == wine_id))
+        prefill = result.scalar_one_or_none()
+    return templates.TemplateResponse(
+        "wine/add.html", {"request": request, "user": user, "prefill": prefill}
+    )
 
 
 @router.get("/wine/scan", response_class=HTMLResponse)
@@ -68,6 +83,26 @@ async def scan_wine_page(request: Request, db: AsyncSession = Depends(get_db)):
     """Scan a bottle or glass."""
     user = await get_current_user(request, db)
     return templates.TemplateResponse("wine/scan.html", {"request": request, "user": user})
+
+
+@router.get("/wine/{wine_id}", response_class=HTMLResponse)
+async def wine_detail_page(wine_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Wine detail page."""
+    result = await db.execute(
+        select(Wine).options(selectinload(Wine.tasting_notes)).where(Wine.id == wine_id)
+    )
+    wine = result.scalar_one_or_none()
+    if not wine:
+        return _not_found(request)
+
+    user = await get_current_user(request, db)
+    ratings = [tn.rating for tn in wine.tasting_notes if tn.rating]
+    avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
+
+    return templates.TemplateResponse(
+        "wine/detail.html",
+        {"request": request, "wine": wine, "user": user, "avg_rating": avg_rating},
+    )
 
 
 @router.get("/feed", response_class=HTMLResponse)
@@ -87,12 +122,11 @@ async def profile_page(user_id: str, request: Request, db: AsyncSession = Depend
     )
     profile_user = result.scalar_one_or_none()
     if not profile_user:
-        return templates.TemplateResponse("errors/404.html", {"request": request}, status_code=404)
+        return _not_found(request)
 
     current_user = await get_current_user(request, db)
 
     # User's tasting notes — eagerly load relationships
-    from sqlalchemy.orm import selectinload
     stmt = (
         select(TastingNote)
         .options(selectinload(TastingNote.wine), selectinload(TastingNote.location))
@@ -161,6 +195,55 @@ async def groups_list_page(request: Request, db: AsyncSession = Depends(get_db))
     """List all public wine groups."""
     user = await get_current_user(request, db)
     return templates.TemplateResponse("community/groups.html", {"request": request, "user": user})
+
+
+@router.get("/group/{group_id}", response_class=HTMLResponse)
+async def group_detail_page(group_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Group detail page."""
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+    if not group:
+        return _not_found(request)
+
+    user = await get_current_user(request, db)
+
+    members = await db.execute(
+        select(User)
+        .join(GroupMember, GroupMember.user_id == User.id)
+        .where(GroupMember.group_id == group_id)
+    )
+    member_list = members.scalars().all()
+
+    member_ids = [m.id for m in member_list]
+    notes = []
+    if member_ids:
+        stmt = (
+            select(TastingNote)
+            .options(
+                selectinload(TastingNote.wine),
+                selectinload(TastingNote.user),
+                selectinload(TastingNote.location),
+            )
+            .where(TastingNote.user_id.in_(member_ids), TastingNote.is_public == True)
+            .order_by(TastingNote.created_at.desc())
+            .limit(30)
+        )
+        result = await db.execute(stmt)
+        notes = list(result.scalars().all())
+
+    is_member = bool(user and any(m.id == user.id for m in member_list))
+
+    return templates.TemplateResponse(
+        "community/group_detail.html",
+        {
+            "request": request,
+            "group": group,
+            "user": user,
+            "members": member_list,
+            "notes": notes,
+            "is_member": is_member,
+        },
+    )
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

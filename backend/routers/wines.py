@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -135,16 +135,33 @@ async def create_wine(
 
     form = await request.form()
 
+    def _num(key, cast, lo=None, hi=None):
+        raw = (form.get(key) or "").strip()
+        if not raw:
+            return None
+        try:
+            val = cast(raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Invalid value for {key!r}")
+        if lo is not None and val < lo:
+            raise HTTPException(status_code=400, detail=f"{key!r} out of range")
+        if hi is not None and val > hi:
+            raise HTTPException(status_code=400, detail=f"{key!r} out of range")
+        return val
+
+    if not (form.get("producer") or "").strip() or not (form.get("name") or "").strip():
+        raise HTTPException(status_code=400, detail="Producer and name are required")
+
     # Get or create the wine
     wine_data = {
-        "producer": form.get("producer", ""),
-        "name": form.get("name", ""),
-        "vintage": int(form["vintage"]) if form.get("vintage") else None,
+        "producer": form.get("producer", "").strip(),
+        "name": form.get("name", "").strip(),
+        "vintage": _num("vintage", int, 1800, 2100),
         "region": form.get("region", ""),
         "country": form.get("country", ""),
         "varietal": form.get("varietal", ""),
         "wine_type": form.get("wine_type", "red"),
-        "abv": float(form["abv"]) if form.get("abv") else None,
+        "abv": _num("abv", float, 0, 100),
         "description": form.get("description", ""),
     }
 
@@ -156,9 +173,9 @@ async def create_wine(
         location = Location(
             name=form["location_name"],
             address=form.get("address", ""),
-            lat=float(form["lat"]),
-            lon=float(form["lon"]),
-            venue_type=form.get("venue_type", "other"),
+            lat=_num("lat", float, -90, 90),
+            lon=_num("lon", float, -180, 180),
+            venue_type=form.get("venue_type") or "other",
         )
         db.add(location)
         await db.flush()
@@ -169,7 +186,7 @@ async def create_wine(
         wine_id=wine.id,
         user_id=user.id,
         location_id=location_id,
-        rating=int(form.get("rating", 3)),
+        rating=_num("rating", int, 1, 5) or 3,
         appearance=form.get("appearance", ""),
         nose=form.get("nose", ""),
         palate=form.get("palate", ""),
@@ -179,10 +196,11 @@ async def create_wine(
         acidity=form.get("acidity", ""),
         tannins=form.get("tannins", ""),
         food_pairing=form.get("food_pairing", ""),
-        price_paid=float(form["price_paid"]) if form.get("price_paid") else None,
+        price_paid=_num("price_paid", float, 0),
         notes=form.get("notes", ""),
         photo_url=form.get("photo_url", ""),
-        is_public=form.get("is_public", "1") == "1",
+        # Checkbox: only public when explicitly checked.
+        is_public=form.get("is_public") == "1",
     )
     db.add(note)
     await db.commit()
@@ -212,6 +230,13 @@ async def export_journal(
     import csv
     import io
 
+    def _safe(v):
+        """Neutralize spreadsheet formula injection (=, +, -, @, tab, CR)."""
+        s = "" if v is None else str(v)
+        if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return "'" + s
+        return s
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -223,7 +248,7 @@ async def export_journal(
     for n in notes:
         wine = n.wine
         loc = n.location
-        writer.writerow([
+        writer.writerow([_safe(x) for x in [
             n.created_at.strftime("%Y-%m-%d") if n.created_at else "",
             wine.name if wine else "",
             wine.producer if wine else "",
@@ -247,7 +272,7 @@ async def export_journal(
             loc.venue_type if loc else "",
             loc.lat if loc else "",
             loc.lon if loc else "",
-        ])
+        ]])
 
     from starlette.responses import Response
     return Response(
@@ -259,40 +284,9 @@ async def export_journal(
     )
 
 
-@router.get("/{wine_id}")
-async def get_wine(wine_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Wine detail page."""
-    from sqlalchemy.orm import selectinload
-
-    result = await db.execute(
-        select(Wine)
-        .options(selectinload(Wine.tasting_notes))
-        .where(Wine.id == wine_id)
-    )
-    wine = result.scalar_one_or_none()
-    if not wine:
-        raise HTTPException(status_code=404, detail="Wine not found")
-
-    user = await get_current_user(request, db)
-
-    # Compute avg rating in async context
-    ratings = [tn.rating for tn in wine.tasting_notes if tn.rating]
-    avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
-
-    return templates.TemplateResponse(
-        "wine/detail.html",
-        {
-            "request": request,
-            "wine": wine,
-            "user": user,
-            "avg_rating": avg_rating,
-        },
-    )
-
-
 @router.get("/{wine_id}/reviews")
 async def get_wine_reviews(wine_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Wine reviews in JSON for HTMX loading."""
+    """Public tasting notes for a wine, as JSON."""
     result = await db.execute(
         select(TastingNote)
         .where(TastingNote.wine_id == wine_id, TastingNote.is_public == True)
@@ -305,8 +299,25 @@ async def get_wine_reviews(wine_id: str, request: Request, db: AsyncSession = De
             "id": n.id,
             "rating": n.rating,
             "username": n.user.display_name or n.user.username,
-            "notes": n.notes[:200] if n.notes else "",
+            "user_id": n.user.id,
+            "notes": n.notes or "",
+            "appearance": n.appearance or "",
+            "nose": n.nose or "",
+            "palate": n.palate or "",
+            "finish": n.finish or "",
+            "body": n.body or "",
+            "sweetness": n.sweetness or "",
+            "acidity": n.acidity or "",
+            "tannins": n.tannins or "",
+            "food_pairing": n.food_pairing or "",
+            "photo_url": n.photo_url or "",
             "created_at": n.created_at.isoformat(),
         }
         for n in notes
     ]}
+
+
+@router.get("/{wine_id}")
+async def get_wine_redirect(wine_id: str):
+    """Back-compat: the wine detail page moved to /wine/{id}."""
+    return RedirectResponse(url=f"/wine/{wine_id}", status_code=301)

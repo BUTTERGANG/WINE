@@ -3,67 +3,64 @@
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold mb-1">Add a Wine</h1>
-    <p class="text-neutral-500 text-sm mb-6">Search for a wine or enter details manually</p>
+    <p class="text-neutral-400 text-sm mb-6">Search for a wine or enter details manually</p>
 
     <!-- Search -->
     <div class="relative mb-6">
-        <input type="text" id="wine-search" placeholder="Search by producer, name, varietal, region..."
+        <input type="text" id="wine-search" placeholder="Search by producer, name, varietal, region…"
             class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none focus:ring-1 focus:ring-wine-500"
-            hx-get="/api/wines/search"
-            hx-trigger="keyup changed delay:300ms"
-            hx-target="#search-results"
-            hx-swap="innerHTML"
-            name="q"
             autocomplete="off">
         <div id="search-results" class="absolute z-10 w-full mt-1 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl max-h-64 overflow-y-auto hidden"></div>
     </div>
 
-    <!-- Add Form -->
-    <form id="wine-form" action="/api/wines" method="post" class="space-y-5 bg-neutral-900 rounded-xl p-6 border border-neutral-800">
-        {% if not user %}
-        <div class="bg-amber-900/30 border border-amber-700 text-amber-300 rounded-lg px-4 py-3 text-sm">
-            You must <a href="/api/auth/login" class="underline">log in</a> to add a wine.
-        </div>
-        {% endif %}
+    {% if not user %}
+    <div class="bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg px-4 py-3 text-sm mb-4">
+        You must <a href="/api/auth/login" class="underline">log in</a> to save a tasting.
+    </div>
+    {% endif %}
 
-        <div class="grid grid-cols-2 gap-4">
+    <form id="wine-form" class="space-y-5 bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+        <div id="form-error" class="hidden bg-red-900/30 border border-red-700 text-red-300 rounded-lg px-4 py-2 text-sm"></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm text-neutral-400 mb-1">Producer *</label>
-                <input type="text" name="producer" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+                <label class="block text-sm text-neutral-300 mb-1" for="f-producer">Producer *</label>
+                <input id="f-producer" type="text" name="producer" required value="{{ prefill.producer if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
             </div>
             <div>
-                <label class="block text-sm text-neutral-400 mb-1">Name *</label>
-                <input type="text" name="name" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-        </div>
-        <div class="grid grid-cols-3 gap-4">
-            <div>
-                <label class="block text-sm text-neutral-400 mb-1">Vintage</label>
-                <input type="number" name="vintage" placeholder="2020" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-400 mb-1">Region</label>
-                <input type="text" name="region" placeholder="Napa Valley" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-400 mb-1">Varietal</label>
-                <input type="text" name="varietal" placeholder="Cabernet Sauvignon" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+                <label class="block text-sm text-neutral-300 mb-1" for="f-name">Name *</label>
+                <input id="f-name" type="text" name="name" required value="{{ prefill.name if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="block text-sm text-neutral-400 mb-1">Country</label>
-                <input type="text" name="country" placeholder="France" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+                <label class="block text-sm text-neutral-300 mb-1" for="f-vintage">Vintage</label>
+                <input id="f-vintage" type="number" name="vintage" min="1800" max="2100" placeholder="2020" value="{{ prefill.vintage if prefill and prefill.vintage else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
             </div>
             <div>
-                <label class="block text-sm text-neutral-400 mb-1">Type</label>
-                <select name="wine_type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
-                    <option value="red">Red</option>
-                    <option value="white">White</option>
-                    <option value="rosé">Rosé</option>
-                    <option value="sparkling">Sparkling</option>
-                    <option value="fortified">Fortified</option>
-                    <option value="dessert">Dessert</option>
+                <label class="block text-sm text-neutral-300 mb-1" for="f-region">Region</label>
+                <input id="f-region" type="text" name="region" placeholder="Napa Valley" value="{{ prefill.region if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-300 mb-1" for="f-varietal">Varietal</label>
+                <input id="f-varietal" type="text" name="varietal" placeholder="Cabernet Sauvignon" value="{{ prefill.varietal if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm text-neutral-300 mb-1" for="f-country">Country</label>
+                <input id="f-country" type="text" name="country" placeholder="France" value="{{ prefill.country if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-300 mb-1" for="f-type">Type</label>
+                <select id="f-type" name="wine_type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+                    {% set t = prefill.wine_type if prefill else 'red' %}
+                    <option value="red" {{ 'selected' if t == 'red' }}>Red</option>
+                    <option value="white" {{ 'selected' if t == 'white' }}>White</option>
+                    <option value="rosé" {{ 'selected' if t == 'rosé' }}>Rosé</option>
+                    <option value="sparkling" {{ 'selected' if t == 'sparkling' }}>Sparkling</option>
+                    <option value="fortified" {{ 'selected' if t == 'fortified' }}>Fortified</option>
+                    <option value="dessert" {{ 'selected' if t == 'dessert' }}>Dessert</option>
                 </select>
             </div>
         </div>
@@ -72,10 +69,10 @@
 
         <!-- Rating -->
         <div>
-            <label class="block text-sm text-neutral-400 mb-2">Rating</label>
-            <div class="flex gap-1" id="star-rating">
+            <label class="block text-sm text-neutral-300 mb-2">Rating</label>
+            <div class="flex gap-1" id="star-rating" role="radiogroup" aria-label="Rating out of 5">
                 {% for i in range(1, 6) %}
-                <span class="star" data-value="{{ i }}" onclick="setRating({{ i }})">☆</span>
+                <span class="star" data-value="{{ i }}" role="radio" tabindex="0" aria-label="{{ i }} star{{ 's' if i != 1 }}" aria-checked="false">☆</span>
                 {% endfor %}
                 <input type="hidden" name="rating" id="rating-input" value="3">
             </div>
@@ -83,44 +80,49 @@
 
         <!-- Tasting Notes -->
         <div>
-            <label class="block text-sm text-neutral-400 mb-2">Tasting Notes</label>
-            <div class="grid grid-cols-2 gap-3">
+            <label class="block text-sm text-neutral-300 mb-2">Tasting Notes</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-xs text-neutral-500">Appearance</label>
-                    <input type="text" name="appearance" placeholder="Clear, deep ruby" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <label class="text-xs text-neutral-400" for="f-appearance">Appearance</label>
+                    <input id="f-appearance" type="text" name="appearance" placeholder="Clear, deep ruby" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs text-neutral-500">Nose</label>
-                    <input type="text" name="nose" placeholder="Blackberry, vanilla, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <label class="text-xs text-neutral-400" for="f-nose">Nose</label>
+                    <input id="f-nose" type="text" name="nose" placeholder="Blackberry, vanilla, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs text-neutral-500">Palate</label>
-                    <input type="text" name="palate" placeholder="Full-bodied, smooth tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <label class="text-xs text-neutral-400" for="f-palate">Palate</label>
+                    <input id="f-palate" type="text" name="palate" placeholder="Full-bodied, smooth tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs text-neutral-500">Finish</label>
-                    <input type="text" name="finish" placeholder="Long, lingering, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <label class="text-xs text-neutral-400" for="f-finish">Finish</label>
+                    <input id="f-finish" type="text" name="finish" placeholder="Long, lingering, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
                 </div>
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-                <label class="block text-xs text-neutral-500 mb-1">Body</label>
-                <select name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
-                    <option value="">Select</option>
-                    <option value="light">Light</option>
-                    <option value="medium">Medium</option>
-                    <option value="full">Full</option>
+                <label class="block text-xs text-neutral-400 mb-1" for="f-body">Body</label>
+                <select id="f-body" name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
+                    <option value="">–</option><option value="light">Light</option><option value="medium">Medium</option><option value="full">Full</option>
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-neutral-500 mb-1">Sweetness</label>
-                <select name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
-                    <option value="">Select</option>
-                    <option value="dry">Dry</option>
-                    <option value="off-dry">Off-Dry</option>
-                    <option value="medium">Medium</option>
-                    <option value="sweet">Sweet</option>
+                <label class="block text-xs text-neutral-400 mb-1" for="f-sweetness">Sweetness</label>
+                <select id="f-sweetness" name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
+                    <option value="">–</option><option value="dry">Dry</option><option value="off-dry">Off-Dry</option><option value="medium">Medium</option><option value="sweet">Sweet</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-400 mb-1" for="f-acidity">Acidity</label>
+                <select id="f-acidity" name="acidity" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
+                    <option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-400 mb-1" for="f-tannins">Tannins</label>
+                <select id="f-tannins" name="tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
+                    <option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
                 </select>
             </div>
         </div>
@@ -128,164 +130,204 @@
         <!-- Location -->
         <hr class="border-neutral-800">
         <div>
-            <label class="block text-sm text-neutral-400 mb-2">📍 Where were you drinking?</label>
-            <input type="text" id="location-search" placeholder="Search for a restaurant, winery, bar..."
+            <label class="block text-sm text-neutral-300 mb-2" for="location-search">📍 Where were you drinking?</label>
+            <input id="location-search" type="text" placeholder="Search for a restaurant, winery, bar…"
                 class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none"
                 autocomplete="off">
-            <div id="location-results" class="mt-1 text-sm text-neutral-500"></div>
+            <div id="location-results" class="mt-1 text-sm text-neutral-400" aria-live="polite"></div>
             <input type="hidden" name="lat" id="lat-input">
             <input type="hidden" name="lon" id="lon-input">
             <input type="hidden" name="location_name" id="location-name-input">
             <input type="hidden" name="address" id="address-input">
             <input type="hidden" name="venue_type" id="venue-type-input">
-            <!-- Mini map for location -->
-            <div id="location-preview" class="mt-2 h-40 rounded-lg bg-neutral-800 hidden"></div>
         </div>
 
         <!-- Notes -->
         <div>
-            <label class="block text-sm text-neutral-400 mb-1">Notes</label>
-            <textarea name="notes" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Any additional thoughts..."></textarea>
+            <label class="block text-sm text-neutral-300 mb-1" for="f-notes">Notes</label>
+            <textarea id="f-notes" name="notes" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Any additional thoughts…"></textarea>
         </div>
 
         <!-- Photo -->
         <div>
-            <label class="block text-sm text-neutral-400 mb-1">📷 Photo</label>
-            <div class="border-2 border-dashed border-neutral-700 rounded-xl p-6 text-center cursor-pointer hover:border-wine-500 transition" id="photo-drop-zone" onclick="document.getElementById('photo-input').click()">
-                <div class="text-2xl mb-2">📸</div>
-                <p class="text-sm text-neutral-500">Add a photo of the bottle or glass</p>
-                <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto(this)">
+            <label class="block text-sm text-neutral-300 mb-1">📷 Photo</label>
+            <div class="border-2 border-dashed border-neutral-700 rounded-xl p-6 text-center cursor-pointer hover:border-wine-500 transition"
+                 id="photo-drop-zone" role="button" tabindex="0" aria-label="Add a photo">
+                <div class="text-2xl mb-2" aria-hidden="true">📸</div>
+                <p class="text-sm text-neutral-400">Add a photo of the bottle or glass</p>
+                <input type="file" id="photo-input" accept="image/*" class="hidden">
                 <input type="hidden" name="photo_url" id="photo-url-input">
             </div>
             <div id="photo-preview" class="mt-2 hidden">
-                <img id="photo-img" class="h-32 rounded-lg object-cover border border-neutral-700">
-                <button type="button" onclick="removePhoto()" class="text-xs text-red-400 mt-1 hover:underline">Remove</button>
+                <img id="photo-img" alt="Selected photo preview" class="h-32 rounded-lg object-cover border border-neutral-700">
+                <button type="button" id="photo-remove" class="text-xs text-red-400 mt-1 hover:underline">Remove</button>
             </div>
         </div>
-        <div>
-            <label class="block text-xs text-neutral-500 mb-1">Food Pairing</label>
-            <input type="text" name="food_pairing" placeholder="Grilled steak, roasted vegetables" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
-        </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs text-neutral-500 mb-1">Price Paid ($)</label>
-                <input type="number" name="price_paid" step="0.01" placeholder="25.00" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                <label class="block text-xs text-neutral-400 mb-1" for="f-pairing">Food Pairing</label>
+                <input id="f-pairing" type="text" name="food_pairing" placeholder="Grilled steak, roasted vegetables" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
             </div>
-            <div class="flex items-center gap-2 pt-5">
-                <input type="checkbox" name="is_public" value="1" checked id="is-public" class="rounded border-neutral-700 bg-neutral-800">
-                <label for="is-public" class="text-sm text-neutral-400">Share with community</label>
+            <div>
+                <label class="block text-xs text-neutral-400 mb-1" for="f-price">Price Paid ($)</label>
+                <input id="f-price" type="number" name="price_paid" step="0.01" min="0" placeholder="25.00" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
             </div>
         </div>
+        <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_public" value="1" checked id="is-public" class="rounded border-neutral-700 bg-neutral-800">
+            <span class="text-sm text-neutral-300">Share with community</span>
+        </label>
 
-        <button type="submit" class="w-full bg-wine-600 hover:bg-wine-500 text-white font-medium py-3 rounded-lg transition">
+        <button type="submit" id="submit-btn" class="w-full bg-wine-600 hover:bg-wine-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition">
             🍷 Save Tasting
         </button>
     </form>
 </div>
 
 <script>
-function setRating(val) {
-    document.getElementById('rating-input').value = val;
-    document.querySelectorAll('.star').forEach(el => {
-        el.textContent = parseInt(el.dataset.value) <= val ? '★' : '☆';
-        el.classList.toggle('active', parseInt(el.dataset.value) <= val);
+(function () {
+    const form = document.getElementById('wine-form');
+    const errBox = document.getElementById('form-error');
+
+    // ---- Star rating (mouse + keyboard) ----
+    const stars = Array.from(document.querySelectorAll('.star'));
+    function setRating(val) {
+        document.getElementById('rating-input').value = val;
+        stars.forEach(function (el) {
+            const v = parseInt(el.dataset.value);
+            el.textContent = v <= val ? '★' : '☆';
+            el.classList.toggle('active', v <= val);
+            el.setAttribute('aria-checked', String(v === val));
+        });
+    }
+    stars.forEach(function (el) {
+        el.addEventListener('click', function () { setRating(parseInt(el.dataset.value)); });
+        el.addEventListener('keydown', function (e) {
+            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setRating(parseInt(el.dataset.value)); }
+            else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); const n = Math.min(5, parseInt(el.dataset.value) + 1); setRating(n); stars[n - 1].focus(); }
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.max(1, parseInt(el.dataset.value) - 1); setRating(n); stars[n - 1].focus(); }
+        });
     });
-}
-// Init default rating
-setRating(3);
+    setRating(3);
 
-// Wine search autocomplete
-document.getElementById('wine-search').addEventListener('keyup', function(e) {
-    const q = this.value.trim();
-    const results = document.getElementById('search-results');
-    if (q.length < 2) { results.classList.add('hidden'); return; }
-    
-    fetch('/api/wines/search?q=' + encodeURIComponent(q) + '&limit=10')
-        .then(r => r.json())
-        .then(data => {
-            if (!data.results || !data.results.length) {
-                results.innerHTML = '<div class="p-3 text-neutral-500 text-sm">No matches found</div>';
-                results.classList.remove('hidden');
-                return;
-            }
-            results.innerHTML = data.results.map(r => `
-                <div class="p-3 border-b border-neutral-800 hover:bg-neutral-800 cursor-pointer text-sm"
-                     onclick="selectWine('${r.producer.replace(/'/g, "\\'")}', '${r.name.replace(/'/g, "\\'")}', ${r.vintage || 'null'}, '${r.region.replace(/'/g, "\\'")}', '${r.varietal.replace(/'/g, "\\'")}', '${r.wine_type}')">
-                    <div class="font-medium">${r.display}</div>
-                    <div class="text-xs text-neutral-500">${r.region} · ${r.varietal || r.wine_type}</div>
-                </div>
-            `).join('');
-            results.classList.remove('hidden');
-        });
-});
-
-function selectWine(producer, name, vintage, region, varietal, wineType) {
-    document.querySelector('[name="producer"]').value = producer;
-    document.querySelector('[name="name"]').value = name;
-    if (vintage) document.querySelector('[name="vintage"]').value = vintage;
-    document.querySelector('[name="region"]').value = region;
-    document.querySelector('[name="varietal"]').value = varietal;
-    document.querySelector('[name="wine_type"]').value = wineType;
-    document.getElementById('wine-search').value = producer + ' ' + name;
-    document.getElementById('search-results').classList.add('hidden');
-}
-
-// Location search
-let locTimeout;
-document.getElementById('location-search').addEventListener('input', function() {
-    clearTimeout(locTimeout);
-    locTimeout = setTimeout(() => {
+    // ---- Wine autocomplete ----
+    const searchInput = document.getElementById('wine-search');
+    const searchResults = document.getElementById('search-results');
+    let searchTimer;
+    searchInput.addEventListener('input', function () {
+        clearTimeout(searchTimer);
         const q = this.value.trim();
-        if (q.length < 3) return;
-        fetch('/api/locations/geocode', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'address=' + encodeURIComponent(q)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.lat) {
-                document.getElementById('lat-input').value = data.lat;
-                document.getElementById('lon-input').value = data.lon;
-                document.getElementById('location-name-input').value = q;
-                document.getElementById('address-input').value = data.display_name || q;
-                document.getElementById('location-results').innerHTML = 
-                    `<span class="text-green-400">📍 ${data.display_name || q}</span>`;
-            }
-        })
-        .catch(() => {});
-    }, 500);
-});
+        if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+        searchTimer = setTimeout(function () {
+            fetch('/api/wines/search?q=' + encodeURIComponent(q) + '&limit=10')
+                .then(r => r.json())
+                .then(function (data) {
+                    const results = data.results || [];
+                    if (!results.length) {
+                        searchResults.innerHTML = '<div class="p-3 text-neutral-400 text-sm">No matches found</div>';
+                        searchResults.classList.remove('hidden');
+                        return;
+                    }
+                    searchResults.innerHTML = '';
+                    results.forEach(function (r) {
+                        const row = document.createElement('div');
+                        row.className = 'p-3 border-b border-neutral-800 hover:bg-neutral-800 cursor-pointer text-sm';
+                        row.innerHTML = '<div class="font-medium">' + esc(r.display) + '</div>' +
+                            '<div class="text-xs text-neutral-400">' + esc([r.region, r.varietal || r.wine_type].filter(Boolean).join(' · ')) + '</div>';
+                        row.addEventListener('click', function () {
+                            form.producer.value = r.producer || '';
+                            form.name.value = r.name || '';
+                            if (r.vintage) form.vintage.value = r.vintage;
+                            form.region.value = r.region || '';
+                            form.varietal.value = r.varietal || '';
+                            if (r.wine_type) form.wine_type.value = r.wine_type;
+                            searchInput.value = ((r.producer || '') + ' ' + (r.name || '')).trim();
+                            searchResults.classList.add('hidden');
+                        });
+                        searchResults.appendChild(row);
+                    });
+                    searchResults.classList.remove('hidden');
+                })
+                .catch(function () { searchResults.classList.add('hidden'); });
+        }, 300);
+    });
+    document.addEventListener('click', function (e) {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) searchResults.classList.add('hidden');
+    });
 
-// Photo upload
-function uploadPhoto(input) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    document.getElementById('photo-drop-zone').classList.add('hidden');
-    document.getElementById('photo-preview').classList.remove('hidden');
-    document.getElementById('photo-img').src = URL.createObjectURL(file);
-    
-    fetch('/api/upload/photo', { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(data => {
-            if (data.url) {
-                document.getElementById('photo-url-input').value = data.url;
-            }
-        })
-        .catch(() => {
-            document.getElementById('photo-preview').classList.add('hidden');
-            document.getElementById('photo-drop-zone').classList.remove('hidden');
-        });
-}
+    // ---- Location search ----
+    const locInput = document.getElementById('location-search');
+    const locResults = document.getElementById('location-results');
+    let locTimer;
+    locInput.addEventListener('input', function () {
+        clearTimeout(locTimer);
+        const q = this.value.trim();
+        if (q.length < 3) { locResults.textContent = ''; return; }
+        locResults.textContent = 'Searching…';
+        locTimer = setTimeout(function () {
+            fetch('/api/locations/geocode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'address=' + encodeURIComponent(q),
+            })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(function (data) {
+                    document.getElementById('lat-input').value = data.lat;
+                    document.getElementById('lon-input').value = data.lon;
+                    document.getElementById('location-name-input').value = q;
+                    document.getElementById('address-input').value = data.display_name || q;
+                    locResults.innerHTML = '<span class="text-green-400">📍 ' + esc(data.display_name || q) + '</span>';
+                })
+                .catch(function () { locResults.textContent = 'No match found for that place.'; });
+        }, 500);
+    });
 
-function removePhoto() {
-    document.getElementById('photo-url-input').value = '';
-    document.getElementById('photo-preview').classList.add('hidden');
-    document.getElementById('photo-drop-zone').classList.remove('hidden');
-    document.getElementById('photo-input').value = '';
-}
+    // ---- Photo upload ----
+    const dropZone = document.getElementById('photo-drop-zone');
+    const photoInput = document.getElementById('photo-input');
+    const preview = document.getElementById('photo-preview');
+    dropZone.addEventListener('click', function () { photoInput.click(); });
+    dropZone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInput.click(); } });
+    document.getElementById('photo-remove').addEventListener('click', function () {
+        document.getElementById('photo-url-input').value = '';
+        preview.classList.add('hidden'); dropZone.classList.remove('hidden'); photoInput.value = '';
+    });
+    photoInput.addEventListener('change', function () {
+        if (!photoInput.files || !photoInput.files[0]) return;
+        const file = photoInput.files[0];
+        dropZone.classList.add('hidden');
+        preview.classList.remove('hidden');
+        document.getElementById('photo-img').src = URL.createObjectURL(file);
+        const fd = new FormData(); fd.append('file', file);
+        fetch('/api/upload/photo', { method: 'POST', body: fd })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(function (data) { document.getElementById('photo-url-input').value = data.url || ''; })
+            .catch(function () {
+                preview.classList.add('hidden'); dropZone.classList.remove('hidden');
+                showError('Photo upload failed — you can still save without it.');
+            });
+    });
+
+    // ---- Submit ----
+    function showError(msg) { errBox.textContent = msg; errBox.classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errBox.classList.add('hidden');
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true; btn.textContent = 'Saving…';
+        fetch('/api/wines', { method: 'POST', body: new FormData(form) })
+            .then(async function (r) {
+                const data = await r.json().catch(() => ({}));
+                if (r.status === 401) { window.location.href = '/api/auth/login'; return; }
+                if (!r.ok) throw new Error(data.detail || 'Could not save the tasting.');
+                window.location.href = '/wine/' + encodeURIComponent(data.wine_id);
+            })
+            .catch(function (ex) {
+                showError(ex.message);
+                btn.disabled = false; btn.textContent = '🍷 Save Tasting';
+            });
+    });
+})();
 </script>
 {% endblock %}

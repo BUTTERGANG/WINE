@@ -85,18 +85,22 @@ async def compute_taste_profile(user_id: str, db: AsyncSession) -> dict:
     pref_sweetness = best_category(sweetness_ratings)
 
     if fav_type:
-        summary_parts.append(f"You tend to rate {fav_type} wines highest")
+        summary_parts.append(f"you tend to rate {fav_type} wines highest")
     if fav_varietal:
         summary_parts.append(f"your favorite varietal is {fav_varietal}")
     if fav_region:
-        summary_parts.append(f"and you gravitate toward {fav_region}")
+        summary_parts.append(f"you gravitate toward {fav_region}")
     if pref_body:
-        summary_parts.append(f"preferring {pref_body}-bodied wines")
+        summary_parts.append(f"you prefer {pref_body}-bodied wines")
     if avg_rating:
         overall = "generous" if avg_rating >= 4 else "discriminating" if avg_rating < 3.5 else "balanced"
-        summary_parts.append(f"with an {overall} average of {avg_rating}/5")
+        summary_parts.append(f"and your average score is {overall}, at {avg_rating}/5")
 
-    palette_summary = " · ".join(summary_parts).capitalize() if summary_parts else "Keep tasting to build your profile!"
+    if summary_parts:
+        joined = " · ".join(summary_parts)
+        palette_summary = joined[:1].upper() + joined[1:]
+    else:
+        palette_summary = "Keep tasting to build your profile!"
 
     return {
         "has_data": True,

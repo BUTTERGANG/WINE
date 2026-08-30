@@ -16,6 +16,31 @@ from backend.services.template import templates
 router = APIRouter(prefix="/api", tags=["community"])
 
 
+async def _resolve_user_id(value: str, db: AsyncSession) -> str | None:
+    """Accept a user id or a username, return the canonical id (or None)."""
+    result = await db.execute(
+        select(User.id).where((User.id == value) | (User.username == value))
+    )
+    return result.scalar_one_or_none()
+
+
+def _feed_item(note: TastingNote) -> dict:
+    return {
+        "id": note.id,
+        "wine_id": note.wine.id,
+        "wine_name": note.wine.display_name,
+        "wine_type": note.wine.wine_type,
+        "rating": note.rating,
+        "username": note.user.display_name or note.user.username,
+        "user_id": note.user.id,
+        "user_avatar": note.user.avatar_url,
+        "location_name": note.location.name if note.location else None,
+        "notes": note.notes[:280] if note.notes else "",
+        "photo_url": note.photo_url or "",
+        "created_at": note.created_at.isoformat(),
+    }
+
+
 # ── Feed ─────────────────────────────────────────────────────────────────
 
 
@@ -36,23 +61,7 @@ async def get_feed(
     result = await db.execute(stmt)
     notes = result.scalars().all()
 
-    items = []
-    for note in notes:
-        items.append({
-            "id": note.id,
-            "wine_id": note.wine.id,
-            "wine_name": note.wine.display_name,
-            "wine_type": note.wine.wine_type,
-            "rating": note.rating,
-            "username": note.user.display_name or note.user.username,
-            "user_id": note.user.id,
-            "user_avatar": note.user.avatar_url,
-            "location_name": note.location.name if note.location else None,
-            "notes": note.notes[:150] if note.notes else "",
-            "created_at": note.created_at.isoformat(),
-        })
-
-    return {"items": items}
+    return {"items": [_feed_item(n) for n in notes]}
 
 
 @router.get("/feed/personal")
@@ -83,23 +92,7 @@ async def get_personal_feed(
     result = await db.execute(stmt)
     notes = result.scalars().all()
 
-    items = []
-    for note in notes:
-        items.append({
-            "id": note.id,
-            "wine_id": note.wine.id,
-            "wine_name": note.wine.display_name,
-            "wine_type": note.wine.wine_type,
-            "rating": note.rating,
-            "username": note.user.display_name or note.user.username,
-            "user_id": note.user.id,
-            "user_avatar": note.user.avatar_url,
-            "location_name": note.location.name if note.location else None,
-            "notes": note.notes[:150] if note.notes else "",
-            "created_at": note.created_at.isoformat(),
-        })
-
-    return {"items": items}
+    return {"items": [_feed_item(n) for n in notes]}
 
 
 # ── Follows ──────────────────────────────────────────────────────────────
@@ -115,12 +108,16 @@ async def toggle_follow(
     user = await get_current_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    if user.id == target_id:
+
+    target = await _resolve_user_id(target_id, db)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == target:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
 
     stmt = select(Follow).where(
         Follow.follower_id == user.id,
-        Follow.followed_id == target_id,
+        Follow.followed_id == target,
     )
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
@@ -130,7 +127,7 @@ async def toggle_follow(
         await db.commit()
         return {"following": False}
 
-    follow = Follow(follower_id=user.id, followed_id=target_id)
+    follow = Follow(follower_id=user.id, followed_id=target)
     db.add(follow)
     await db.commit()
     return {"following": True}
@@ -144,12 +141,13 @@ async def get_follow_status(
 ):
     """Check if current user follows the target user."""
     user = await get_current_user(request, db)
-    if not user or user.id == target_id:
+    target = await _resolve_user_id(target_id, db) if user else None
+    if not user or not target or user.id == target:
         return {"following": False}
 
     stmt = select(Follow).where(
         Follow.follower_id == user.id,
-        Follow.followed_id == target_id,
+        Follow.followed_id == target,
     )
     result = await db.execute(stmt)
     return {"following": result.scalar_one_or_none() is not None}
@@ -158,11 +156,12 @@ async def get_follow_status(
 @router.get("/follows/{user_id}")
 async def get_follow_counts(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get follower/following counts."""
+    target = await _resolve_user_id(user_id, db) or user_id
     following = await db.execute(
-        select(func.count()).select_from(Follow).where(Follow.follower_id == user_id)
+        select(func.count()).select_from(Follow).where(Follow.follower_id == target)
     )
     followers = await db.execute(
-        select(func.count()).select_from(Follow).where(Follow.followed_id == user_id)
+        select(func.count()).select_from(Follow).where(Follow.followed_id == target)
     )
     return {
         "following_count": following.scalar() or 0,
@@ -177,6 +176,7 @@ async def get_follow_lists(
     db: AsyncSession = Depends(get_db),
 ):
     """Get list of users a user follows or who follow them."""
+    user_id = await _resolve_user_id(user_id, db) or user_id
     if direction == "following":
         stmt = (
             select(User)
@@ -217,6 +217,9 @@ async def create_group(
         is_private=form.get("is_private", "0") == "1",
         owner_id=user.id,
     )
+    if not (group.name or "").strip():
+        raise HTTPException(status_code=400, detail="Group name is required")
+
     db.add(group)
     await db.flush()
 
@@ -224,18 +227,12 @@ async def create_group(
     member = GroupMember(group_id=group.id, user_id=user.id, role="owner")
     db.add(member)
     await db.commit()
-    await db.refresh(group)
 
-    return {"ok": True, "id": group.id, "name": group.name}
+    # Return the refreshed list so the UI can swap it in directly.
+    return {"ok": True, "id": group.id, "name": group.name, **await _list_public_groups(db)}
 
 
-@router.get("/groups")
-async def list_groups(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    limit: int = 30,
-):
-    """List public groups."""
+async def _list_public_groups(db: AsyncSession, limit: int = 30) -> dict:
     stmt = (
         select(Group)
         .where(Group.is_private == False)
@@ -257,8 +254,17 @@ async def list_groups(
             "member_count": count.scalar() or 0,
             "created_at": g.created_at.isoformat(),
         })
-
     return {"groups": results}
+
+
+@router.get("/groups")
+async def list_groups(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    limit: int = 30,
+):
+    """List public groups."""
+    return await _list_public_groups(db, limit)
 
 
 @router.post("/groups/{group_id}/join")
@@ -295,62 +301,6 @@ async def join_group(
     return {"ok": True, "already_member": False}
 
 
-@router.get("/groups/{group_id}")
-async def get_group(
-    group_id: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Group detail page."""
-    result = await db.execute(select(Group).where(Group.id == group_id))
-    group = result.scalar_one_or_none()
-    if not group:
-        return templates.TemplateResponse("errors/404.html", {"request": request}, status_code=404)
-
-    user = await get_current_user(request, db)
-
-    # Members
-    members = await db.execute(
-        select(User)
-        .join(GroupMember, GroupMember.user_id == User.id)
-        .where(GroupMember.group_id == group_id)
-    )
-    member_list = members.scalars().all()
-
-    # Group tasting notes
-    member_ids = [m.id for m in member_list]
-    stmt = (
-        select(TastingNote)
-        .options(selectinload(TastingNote.wine), selectinload(TastingNote.user), selectinload(TastingNote.location))
-        .where(TastingNote.user_id.in_(member_ids), TastingNote.is_public == True)
-        .order_by(TastingNote.created_at.desc())
-        .limit(30)
-    )
-    result = await db.execute(stmt)
-    notes = list(result.scalars().all())
-
-    # Check membership
-    is_member = False
-    is_owner = False
-    if user:
-        for m in member_list:
-            if m.id == user.id:
-                is_member = True
-                break
-
-    return templates.TemplateResponse(
-        "community/group_detail.html",
-        {
-            "request": request,
-            "group": group,
-            "user": user,
-            "members": member_list,
-            "notes": notes,
-            "is_member": is_member,
-        },
-    )
-
-
 # ── Taste Profile & Recommendations ──────────────────────────────────────
 
 
@@ -363,11 +313,7 @@ async def get_taste_profile(
     """Compute and return a user's taste profile."""
     from backend.services.taste_profile import compute_taste_profile
 
-    # Resolve username → ID
-    result = await db.execute(
-        select(User.id).where((User.id == user_id) | (User.username == user_id))
-    )
-    resolved = result.scalar_one_or_none()
+    resolved = await _resolve_user_id(user_id, db)
     if not resolved:
         if request.headers.get("HX-Request") == "true":
             return templates.TemplateResponse(
@@ -389,7 +335,7 @@ async def get_taste_profile(
 
 
 @router.get("/recommendations")
-async def get_recommendations(
+async def recommendations_endpoint(
     request: Request,
     db: AsyncSession = Depends(get_db),
     limit: int = 5,

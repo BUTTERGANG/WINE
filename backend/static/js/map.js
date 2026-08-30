@@ -1,47 +1,43 @@
-// WINE map interactions
-(function() {
+// WINE — home page mini-map
+(function () {
     'use strict';
 
-    // Init home page mini-map
-    document.addEventListener('DOMContentLoaded', function() {
-        const homeMap = document.getElementById('home-map');
-        if (homeMap && homeMap.dataset.mapInit === 'true') {
-            const center = [40, -95]; // US center default
-            const map = L.map('home-map', {
-                zoomControl: false,
-                dragging: false,
-                scrollWheelZoom: false,
-                attributionControl: false,
-            }).setView(center, 3);
+    document.addEventListener('DOMContentLoaded', function () {
+        var el = document.getElementById('home-map');
+        if (!el || el.dataset.mapInit !== 'true' || typeof L === 'undefined') return;
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
+        el.innerHTML = '';
+        var map = L.map('home-map', {
+            zoomControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            attributionControl: false,
+        }).setView([30, 0], 2);
 
-            // Try user location
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(pos) {
-                    map.setView([pos.coords.latitude, pos.coords.longitude], 10);
-                    // Fetch nearby pins
-                    fetch(`/api/locations/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&radius=500`)
-                        .then(r => r.json())
-                        .then(data => {
-                            (data.features || []).forEach(f => {
-                                const coords = f.geometry.coordinates;
-                                const p = f.properties;
-                                const icon = L.divIcon({
-                                    className: 'wine-pin',
-                                    html: '<div></div>',
-                                    iconSize: [20, 20],
-                                    iconAnchor: [10, 20],
-                                });
-                                L.marker([coords[1], coords[0]], { icon })
-                                    .bindPopup(`<b>${p.wine_name}</b><br>${'★'.repeat(p.rating)}`)
-                                    .addTo(map);
-                            });
-                        });
-                }, function() {
-                    // Fallback: default center, no pins
-                });
-            }
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+        function loadPins(lat, lon, radius, zoom) {
+            map.setView([lat, lon], zoom);
+            fetch('/api/locations/nearby?lat=' + lat + '&lon=' + lon + '&radius=' + radius)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    (data.features || []).forEach(function (f) {
+                        var c = f.geometry.coordinates, p = f.properties;
+                        var icon = L.divIcon({ className: 'wine-pin', html: '<div></div>', iconSize: [20, 20], iconAnchor: [10, 20] });
+                        L.marker([c[1], c[0]], { icon: icon })
+                            .bindPopup('<b>' + esc(p.wine_name) + '</b><br>' + stars(p.rating))
+                            .addTo(map);
+                    });
+                })
+                .catch(function () {});
+        }
+
+        // Load a global view immediately; refine to the viewer's location if allowed.
+        loadPins(20, 0, 20000, 2);
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                loadPins(pos.coords.latitude, pos.coords.longitude, 500, 9);
+            }, function () {});
         }
     });
 })();
