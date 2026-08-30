@@ -2,37 +2,81 @@
 
 ## Project Identity
 - **Repo:** BUTTERGANG/WINE
-- **Stack:** FastAPI / Jinja2 + HTMX / Tailwind CSS / Leaflet.js (OSM) / SQLite → PostgreSQL
+- **Stack:** FastAPI / SQLAlchemy async / SQLite / Jinja2 + HTMX / Tailwind CSS / Leaflet.js (OSM)
 - **Location:** `~/code/BUTTERGANG/WINE/`
-- **Vision:** Social wine tracking with bottle/glass scan, location map, and community
+- **Port:** 8002 (local dev)
+- **Tests:** 44 smoke tests (run against live server)
+- **Vision:** Social wine tracking — snap a bottle or glass, tag where you're drinking it, rate it, and see what your community is drinking nearby
 
-## Architecture State
-- **Phase:** Design (pre-build). THE-VISION/ folder has architecture, features, and MVP plan.
-- **No code yet** — this is a fresh bootstrap.
+## Architecture State (Built 2026-08-30)
+All 3 phases complete. Fully functional MVP with 49,958 wineries, 30 wines, 20 tasting notes, 5 seed users.
 
-## Key Design Decisions (pre-verified)
-1. **HTMX over SPA** — server-rendered HTML with partial swaps. No JS framework needed for MVP.
-2. **Leaflet + OpenStreetMap** — free, no API keys. PostGIS for production geo queries.
-3. **Bottle scan via OCR API** — Google Cloud Vision or api4.ai. Glass scan via custom color/legs analysis.
-4. **External wine DB** — GrapeMinds (free tier, 290K wines) or VinoFYI (free, 741K records) for seed + fallback.
-5. **Session auth** — simple, fast to implement. OAuth can come later.
-6. **Dark theme** — consistent with BUTTERGANG design language.
+## What's Built
+### Core Features
+| Feature | Status | Details |
+|---------|--------|---------|
+| Auth | ✅ | Session cookies, bcrypt passwords |
+| Wine search + add | ✅ | Live autocomplete, structured WSET tasting notes |
+| Location map | ✅ | Leaflet + OSM, marker clustering, personal/all/winery modes |
+| Bottle label scan | ✅ | Camera upload, OCR (api4.ai when key set) |
+| Glass photo analysis | ✅ | Color/legs/opacity → wine type + varietal guesses |
+| Public feed | ✅ | Global + personal (followed users), HTMX-driven |
+| Follow system | ✅ | Follow/unfollow with instant UI toggle |
+| Wine groups | ✅ | Create/join, shared tasting feed |
+| Photo uploads | ✅ | Upload to tastings, served from /static/uploads/ |
+| Taste profile | ✅ | Analyzes rating history → favorite type/varietal/region |
+| Recommendations | ✅ | Suggests untasted wines matching palate |
+| Heatmap | ✅ | Leaflet.heat layer by rating + recency |
+| Near Me | ✅ | Geo-location button, radius slider (5-500km) |
+| CSV export | ✅ | Full journal with 23 columns |
+| Winery database | ✅ | 49,958 wineries across 60+ countries |
+| Winery search | ✅ | Name, region, state, country — with map pins |
+| Venue detail pages | ✅ | Stats, wines poured, recent tastings |
+| Wishlist | ✅ | Save wines to try later, toggle from wine detail |
+| Menu scanner | ✅ | Upload wine list photo, OCR, match against 50K wines |
+| Marker clustering | ✅ | Leaflet.markercluster for crowded map areas |
 
-## Route Map
-- **Phase 1 (MVP):** Scaffold → Auth → Wine Search/Add → Map Pins → Bottle Scan → Glass Scan → Feed
-- **Phase 2:** Follows, groups, community map, photo attachments, profiles, "near me"
-- **Phase 3:** Taste profiling, recommendations, exports, heatmaps, menu scan
+### Test Accounts
+| Username | Email | Password |
+|----------|-------|----------|
+| wine_lover | wine@example.com | password |
+| sommelier_sam | sam@example.com | password |
+| cabernet_queen | queen@example.com | password |
+| sparkling_steve | steve@example.com | password |
+| demo_taster | demo@example.com | password |
 
-## Critical Constraints
-- No external internet on VPS → build depends on local dev first
-- Replit for web dashboards if needed — VPS crons fetch & push
-- Follow BUTTERGANG conventions: THE-VISION/, SCRUM/, README.md section pattern
+## Key Endpoints
+| Route | Method | Description |
+|-------|--------|-------------|
+| /api/wines/search?q= | GET | Wine autocomplete |
+| /api/wines | POST | Create wine + tasting note |
+| /api/wines/export | GET | CSV journal download |
+| /api/wines/wishlist | GET | User's wishlist |
+| /api/wines/wishlist/{id} | POST | Toggle save wine |
+| /api/feed | GET | Global public feed |
+| /api/feed/personal | GET | Feed from followed users |
+| /api/locations/nearby | GET | GeoJSON map pins |
+| /api/locations/heatmap | GET | Heatmap data |
+| /api/wineries/search | GET | Winery search |
+| /api/wineries/nearby | GET | Winery map pins |
+| /api/menu/scan | POST | Upload wine list photo |
+| /api/profile/{id}/taste | GET | Taste profile |
+| /api/recommendations | GET | AI wine recommendations |
 
 ## Quick Commands
 ```bash
 cd ~/code/BUTTERGANG/WINE
-python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-fastapi dev backend/main.py
+.venv/bin/uvicorn backend.main:app --reload --port 8002
+# Full reseed:
+rm -f data/wine.db && .venv/bin/python scripts/seed.py
+# Run tests (server must be running):
+.venv/bin/python -m pytest tests/ -v
 ```
+
+## Key Issues / Gotchas
+- Jinja2 pinned to <3.1.5 due to cache hash bug with Starlette 1.6
+- Session store is in-memory — resets on server restart. Swap to Redis for prod
+- No PostGIS — SQLite bounding-box approximation for geo queries
+- Glass scan is experimental — labeled as "AI Guess" with confidence meter
+- Country data for wineries derived from lat/lon bounding boxes (approximate)
