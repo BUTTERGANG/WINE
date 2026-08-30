@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WINE{% endblock %} · WINE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wine: {
+                            50: '#fdf6ef',
+                            100: '#fbe8d5',
+                            200: '#f6cfaa',
+                            300: '#f0af78',
+                            400: '#e98844',
+                            500: '#e36a1f',
+                            600: '#d45518',
+                            700: '#b04116',
+                            800: '#8d351b',
+                            900: '#722e19',
+                            950: '#3e150b',
+                        },
+                        dark: {
+                            50: '#f8f7f4',
+                            100: '#ece8df',
+                            200: '#d5cebb',
+                            300: '#b8ae92',
+                            400: '#a08f6f',
+                            500: '#917d5d',
+                            600: '#7d6a4f',
+                            700: '#655440',
+                            800: '#554638',
+                            900: '#4a3d32',
+                            950: '#2a221b',
+                        }
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/json-enc.js"></script>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <style>
+        .star { cursor: pointer; font-size: 1.5rem; color: #555; transition: color 0.15s; }
+        .star.active, .star:hover { color: #e98844; }
+        .wine-pin { background: none; border: none; }
+        .wine-pin div { 
+            background: #e98844; 
+            color: white; 
+            border-radius: 50% 50% 50% 0; 
+            width: 24px; 
+            height: 24px; 
+            transform: rotate(-45deg); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .wine-pin div::after { content: '🍷'; font-size: 14px; }
+        .wine-pin.my-wine div { background: #b04116; }
+        .leaflet-popup-content-wrapper { background: #1a1a2e; color: #e8e0d8; border-radius: 8px; }
+        .leaflet-popup-tip { background: #1a1a2e; }
+        .leaflet-popup-content { margin: 10px 15px; }
+    </style>
+</head>
+<body class="bg-neutral-950 text-neutral-200 min-h-screen flex flex-col">
+    <!-- Nav -->
+    <nav class="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <a href="/" class="flex items-center gap-2 text-xl font-bold text-wine-400 hover:text-wine-300">
+                    <span>🍷</span> WINE
+                </a>
+                <div class="flex items-center gap-4 text-sm">
+                    <a href="/" class="hover:text-wine-400 transition">Home</a>
+                    <a href="/map" class="hover:text-wine-400 transition">Map</a>
+                    <a href="/feed" class="hover:text-wine-400 transition">Feed</a>
+                    <a href="/wine/add" class="hover:text-wine-400 transition">Add Wine</a>
+                    <a href="/wine/scan" class="hover:text-wine-400 transition">Scan</a>
+                    {% if user %}
+                    <a href="/profile/{{ user.id }}" class="flex items-center gap-1.5 hover:text-wine-400 transition">
+                        <span class="w-6 h-6 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-bold">{{ user.display_name[:1]|upper }}</span>
+                        {{ user.display_name }}
+                    </a>
+                    <form action="/api/auth/logout" method="post" class="inline">
+                        <button type="submit" class="text-neutral-400 hover:text-red-400 text-xs">Logout</button>
+                    </form>
+                    {% else %}
+                    <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-3 py-1.5 rounded text-white text-xs font-medium transition">Login</a>
+                    <a href="/api/auth/register" class="border border-neutral-700 hover:border-wine-500 px-3 py-1.5 rounded text-xs transition">Sign Up</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-neutral-800 py-4 text-center text-xs text-neutral-600">
+        🍷 WINE · Built by BUTTERGANG
+    </footer>
+
+    <script src="/static/js/map.js"></script>
+</body>
+</html>

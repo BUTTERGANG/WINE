@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Map{% endblock %}
+{% block content %}
+<div class="h-[calc(100vh-3.5rem)] relative">
+    <!-- Map controls overlay -->
+    <div class="absolute top-4 left-4 z-[1000] flex gap-2">
+        <button id="filter-my" class="bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-wine-600 hover:border-wine-500 transition"
+                onclick="toggleFilter('my')">📍 My Wines</button>
+        <button id="filter-all" class="bg-wine-600 text-white border border-wine-500 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-wine-500 transition"
+                onclick="toggleFilter('all')">🌍 All Wines</button>
+    </div>
+
+    <div id="wine-map" class="w-full h-full"></div>
+</div>
+
+<script>
+let map;
+let markersLayer;
+
+function initMap() {
+    map = L.map('wine-map').setView([40, -95], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
+    }).addTo(map);
+
+    markersLayer = L.layerGroup().addTo(map);
+    
+    // Get user location
+    navigator.geolocation?.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+    }, () => {});
+
+    loadPins();
+}
+
+function loadPins(userFilter) {
+    const bounds = map.getBounds();
+    const center = bounds.getCenter();
+    
+    let url = `/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=500`;
+    {% if user %}
+    if (userFilter === 'my') url += `&user_id={{ user.id }}`;
+    {% endif %}
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            markersLayer.clearLayers();
+            const features = data.features || [];
+            
+            if (!features.length) {
+                L.marker([center.lat, center.lng])
+                    .bindPopup('<div style="text-align:center;color:#666">No wine pins in this area yet.<br><a href="/wine/add" style="color:#e98844">Add one!</a></div>')
+                    .addTo(markersLayer);
+                return;
+            }
+
+            features.forEach(f => {
+                const coords = f.geometry.coordinates;
+                const p = f.properties;
+                const icon = L.divIcon({
+                    className: 'wine-pin' + (p.user_id === '{{ user.id if user else "" }}' ? ' my-wine' : ''),
+                    html: '<div></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24],
+                });
+                L.marker([coords[1], coords[0]], { icon })
+                    .bindPopup(`
+                        <div style="min-width:180px">
+                            <div style="font-weight:600;margin-bottom:4px">${p.wine_name}</div>
+                            <div style="font-size:12px">${'★'.repeat(p.rating)}${'☆'.repeat(5-p.rating)}</div>
+                            <div style="font-size:12px;color:#999">${p.location_name}</div>
+                            <div style="font-size:11px;color:#777">by ${p.username}</div>
+                            ${p.notes ? `<div style="font-size:11px;color:#888;margin-top:4px">"${p.notes}"</div>` : ''}
+                            <div style="margin-top:6px">
+                                <a href="/api/wines/${p.wine_id}" style="color:#e98844;font-size:12px">View wine →</a>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(markersLayer);
+            });
+        });
+}
+
+let currentFilter = 'all';
+function toggleFilter(filter) {
+    currentFilter = filter;
+    document.getElementById('filter-my').className = 'bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium transition ' +
+        (filter === 'my' ? 'bg-wine-600 text-white border-wine-500' : 'hover:bg-neutral-800');
+    document.getElementById('filter-all').className = 'bg-neutral-900/90 backdrop-blur-sm border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-medium transition ' +
+        (filter === 'all' ? 'bg-wine-600 text-white border-wine-500' : 'hover:bg-neutral-800');
+    loadPins(filter);
+}
+
+// Reload pins when map stops moving
+map?.on('moveend', () => loadPins(currentFilter));
+
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}

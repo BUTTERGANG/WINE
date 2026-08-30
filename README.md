@@ -73,8 +73,30 @@ pip install -r requirements.txt
 # Copy and edit env
 cp .env.example .env
 
-# Run
-fastapi dev main.py
+# Seed the database with demo data
+.venv/bin/python scripts/seed.py
+
+# Run dev server
+.venv/bin/uvicorn backend.main:app --reload --port 8002
 ```
 
-*Full setup instructions coming in Phase 1 of the MVP.*
+Open http://localhost:8002 — you should see the landing page with seed data.
+
+### Test Accounts
+
+Five seed users are created with password `password`:
+
+| Username | Display Name | Bio |
+|----------|-------------|-----|
+| `wine_lover` | Alex | Exploring wines one glass at a time 🍷 |
+| `sommelier_sam` | Sam | Certified sommelier. Pinot Noir is life. |
+| `cabernet_queen` | Jordan | Napa Cab or bust. |
+| `sparkling_steve` | Steve | Life's too short for still wine. |
+| `demo_taster` | Demo | Just getting started! |
+
+### Run Smoke Tests
+
+```bash
+# Start the server first, then in another terminal:
+.venv/bin/python -m pytest tests/ -v
+```

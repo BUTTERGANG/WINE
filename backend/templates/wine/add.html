@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Add Wine{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-1">Add a Wine</h1>
+    <p class="text-neutral-500 text-sm mb-6">Search for a wine or enter details manually</p>
+
+    <!-- Search -->
+    <div class="relative mb-6">
+        <input type="text" id="wine-search" placeholder="Search by producer, name, varietal, region..."
+            class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none focus:ring-1 focus:ring-wine-500"
+            hx-get="/api/wines/search"
+            hx-trigger="keyup changed delay:300ms"
+            hx-target="#search-results"
+            hx-swap="innerHTML"
+            name="q"
+            autocomplete="off">
+        <div id="search-results" class="absolute z-10 w-full mt-1 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl max-h-64 overflow-y-auto hidden"></div>
+    </div>
+
+    <!-- Add Form -->
+    <form id="wine-form" action="/api/wines" method="post" class="space-y-5 bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+        {% if not user %}
+        <div class="bg-amber-900/30 border border-amber-700 text-amber-300 rounded-lg px-4 py-3 text-sm">
+            You must <a href="/api/auth/login" class="underline">log in</a> to add a wine.
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Producer *</label>
+                <input type="text" name="producer" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Name *</label>
+                <input type="text" name="name" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Vintage</label>
+                <input type="number" name="vintage" placeholder="2020" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Region</label>
+                <input type="text" name="region" placeholder="Napa Valley" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Varietal</label>
+                <input type="text" name="varietal" placeholder="Cabernet Sauvignon" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Country</label>
+                <input type="text" name="country" placeholder="France" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm text-neutral-400 mb-1">Type</label>
+                <select name="wine_type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="red">Red</option>
+                    <option value="white">White</option>
+                    <option value="rosé">Rosé</option>
+                    <option value="sparkling">Sparkling</option>
+                    <option value="fortified">Fortified</option>
+                    <option value="dessert">Dessert</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="border-neutral-800">
+
+        <!-- Rating -->
+        <div>
+            <label class="block text-sm text-neutral-400 mb-2">Rating</label>
+            <div class="flex gap-1" id="star-rating">
+                {% for i in range(1, 6) %}
+                <span class="star" data-value="{{ i }}" onclick="setRating({{ i }})">☆</span>
+                {% endfor %}
+                <input type="hidden" name="rating" id="rating-input" value="3">
+            </div>
+        </div>
+
+        <!-- Tasting Notes -->
+        <div>
+            <label class="block text-sm text-neutral-400 mb-2">Tasting Notes</label>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-neutral-500">Appearance</label>
+                    <input type="text" name="appearance" placeholder="Clear, deep ruby" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-neutral-500">Nose</label>
+                    <input type="text" name="nose" placeholder="Blackberry, vanilla, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-neutral-500">Palate</label>
+                    <input type="text" name="palate" placeholder="Full-bodied, smooth tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-neutral-500">Finish</label>
+                    <input type="text" name="finish" placeholder="Long, lingering, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Body</label>
+                <select name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Select</option>
+                    <option value="light">Light</option>
+                    <option value="medium">Medium</option>
+                    <option value="full">Full</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Sweetness</label>
+                <select name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Select</option>
+                    <option value="dry">Dry</option>
+                    <option value="off-dry">Off-Dry</option>
+                    <option value="medium">Medium</option>
+                    <option value="sweet">Sweet</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Location -->
+        <hr class="border-neutral-800">
+        <div>
+            <label class="block text-sm text-neutral-400 mb-2">📍 Where were you drinking?</label>
+            <input type="text" id="location-search" placeholder="Search for a restaurant, winery, bar..."
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none"
+                autocomplete="off">
+            <div id="location-results" class="mt-1 text-sm text-neutral-500"></div>
+            <input type="hidden" name="lat" id="lat-input">
+            <input type="hidden" name="lon" id="lon-input">
+            <input type="hidden" name="location_name" id="location-name-input">
+            <input type="hidden" name="address" id="address-input">
+            <input type="hidden" name="venue_type" id="venue-type-input">
+            <!-- Mini map for location -->
+            <div id="location-preview" class="mt-2 h-40 rounded-lg bg-neutral-800 hidden"></div>
+        </div>
+
+        <!-- Notes -->
+        <div>
+            <label class="block text-sm text-neutral-400 mb-1">Notes</label>
+            <textarea name="notes" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Any additional thoughts..."></textarea>
+        </div>
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Food Pairing</label>
+            <input type="text" name="food_pairing" placeholder="Grilled steak, roasted vegetables" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Price Paid ($)</label>
+                <input type="number" name="price_paid" step="0.01" placeholder="25.00" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="flex items-center gap-2 pt-5">
+                <input type="checkbox" name="is_public" value="1" checked id="is-public" class="rounded border-neutral-700 bg-neutral-800">
+                <label for="is-public" class="text-sm text-neutral-400">Share with community</label>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full bg-wine-600 hover:bg-wine-500 text-white font-medium py-3 rounded-lg transition">
+            🍷 Save Tasting
+        </button>
+    </form>
+</div>
+
+<script>
+function setRating(val) {
+    document.getElementById('rating-input').value = val;
+    document.querySelectorAll('.star').forEach(el => {
+        el.textContent = parseInt(el.dataset.value) <= val ? '★' : '☆';
+        el.classList.toggle('active', parseInt(el.dataset.value) <= val);
+    });
+}
+// Init default rating
+setRating(3);
+
+// Wine search autocomplete
+document.getElementById('wine-search').addEventListener('keyup', function(e) {
+    const q = this.value.trim();
+    const results = document.getElementById('search-results');
+    if (q.length < 2) { results.classList.add('hidden'); return; }
+    
+    fetch('/api/wines/search?q=' + encodeURIComponent(q) + '&limit=10')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.results || !data.results.length) {
+                results.innerHTML = '<div class="p-3 text-neutral-500 text-sm">No matches found</div>';
+                results.classList.remove('hidden');
+                return;
+            }
+            results.innerHTML = data.results.map(r => `
+                <div class="p-3 border-b border-neutral-800 hover:bg-neutral-800 cursor-pointer text-sm"
+                     onclick="selectWine('${r.producer.replace(/'/g, "\\'")}', '${r.name.replace(/'/g, "\\'")}', ${r.vintage || 'null'}, '${r.region.replace(/'/g, "\\'")}', '${r.varietal.replace(/'/g, "\\'")}', '${r.wine_type}')">
+                    <div class="font-medium">${r.display}</div>
+                    <div class="text-xs text-neutral-500">${r.region} · ${r.varietal || r.wine_type}</div>
+                </div>
+            `).join('');
+            results.classList.remove('hidden');
+        });
+});
+
+function selectWine(producer, name, vintage, region, varietal, wineType) {
+    document.querySelector('[name="producer"]').value = producer;
+    document.querySelector('[name="name"]').value = name;
+    if (vintage) document.querySelector('[name="vintage"]').value = vintage;
+    document.querySelector('[name="region"]').value = region;
+    document.querySelector('[name="varietal"]').value = varietal;
+    document.querySelector('[name="wine_type"]').value = wineType;
+    document.getElementById('wine-search').value = producer + ' ' + name;
+    document.getElementById('search-results').classList.add('hidden');
+}
+
+// Location search
+let locTimeout;
+document.getElementById('location-search').addEventListener('input', function() {
+    clearTimeout(locTimeout);
+    locTimeout = setTimeout(() => {
+        const q = this.value.trim();
+        if (q.length < 3) return;
+        fetch('/api/locations/geocode', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'address=' + encodeURIComponent(q)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.lat) {
+                document.getElementById('lat-input').value = data.lat;
+                document.getElementById('lon-input').value = data.lon;
+                document.getElementById('location-name-input').value = q;
+                document.getElementById('address-input').value = data.display_name || q;
+                document.getElementById('location-results').innerHTML = 
+                    `<span class="text-green-400">📍 ${data.display_name || q}</span>`;
+            }
+        })
+        .catch(() => {});
+    }, 500);
+});
+</script>
+{% endblock %}

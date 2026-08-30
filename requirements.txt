@@ -1,0 +1,39 @@
+# Python 3.11+
+# Web framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Templates
+jinja2>=3.1.2,<3.1.5
+python-multipart>=0.0.6
+aiofiles>=23.2.1
+
+# Database
+sqlalchemy>=2.0.25
+sqlmodel>=0.0.14
+aiosqlite>=0.19.0
+
+# Auth
+bcrypt>=4.1.2
+itsdangerous>=2.1.2
+
+# Config
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# HTTP (for external API calls)
+httpx>=0.26.0
+
+# Image processing (glass scan)
+Pillow>=10.1.0
+numpy>=1.24.0
+
+# Geocoding (Nominatim)
+geopy>=2.4.1
+
+# Testing
+pytest>=7.4.3
+httpx>=0.26.0
+
+# Dev
+watchfiles>=0.21.0

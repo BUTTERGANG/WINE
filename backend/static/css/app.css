@@ -1,0 +1,71 @@
+/* WINE custom styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Star rating */
+.star {
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #555;
+    transition: color 0.15s;
+}
+.star.active, .star:hover {
+    color: #e98844;
+}
+
+/* Wine map pins */
+.wine-pin {
+    background: none !important;
+    border: none !important;
+}
+.wine-pin div {
+    background: #e98844;
+    color: white;
+    border-radius: 50% 50% 50% 0;
+    width: 24px;
+    height: 24px;
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.wine-pin.my-wine div {
+    background: #b04116;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #1a1a2e;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+/* Input/select focus */
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #e98844;
+    box-shadow: 0 0 0 1px #e98844;
+}
+
+/* Leaflet overrides for dark theme */
+.leaflet-container {
+    background: #1a1a2e;
+}
+.leaflet-popup-content-wrapper {
+    background: #1e1e3a !important;
+    color: #e8e0d8 !important;
+    border-radius: 8px !important;
+}
+.leaflet-popup-tip {
+    background: #1e1e3a !important;
+}
+.leaflet-popup-content {
+    margin: 10px 15px !important;
+}
