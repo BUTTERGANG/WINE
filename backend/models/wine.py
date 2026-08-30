@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
@@ -27,6 +27,7 @@ class Wine(Base):
 
     # Relationships
     tasting_notes = relationship("TastingNote", back_populates="wine", lazy="select")
+    wishlist_entries = relationship("WishlistEntry", back_populates="wine", lazy="select")
 
     @property
     def avg_rating(self) -> float | None:
@@ -80,3 +81,24 @@ class TastingNote(Base):
 
     def __repr__(self) -> str:
         return f"<TastingNote {self.wine_id} by {self.user_id} — {self.rating}/5>"
+
+
+class WishlistEntry(Base):
+    """A wine a user wants to try."""
+
+    __tablename__ = "wishlist_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: uuid.uuid4().hex[:12])
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False, index=True)
+    wine_id: Mapped[str] = mapped_column(String, ForeignKey("wines.id"), nullable=False, index=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    added_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("user_id", "wine_id", name="uq_wishlist"),)
+
+    # Relationships
+    wine = relationship("Wine", back_populates="wishlist_entries", lazy="joined")
+    user = relationship("User", lazy="joined")
+
+    def __repr__(self) -> str:
+        return f"<WishlistEntry {self.wine_id} by {self.user_id}>"

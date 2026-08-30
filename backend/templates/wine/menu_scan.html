@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Scan Wine List{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-1">📋 Scan a Wine List</h1>
+    <p class="text-neutral-500 text-sm mb-6">Snap a photo of a restaurant wine list — we'll identify every wine and show ratings</p>
+
+    <!-- Upload -->
+    <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+        <div class="border-2 border-dashed border-neutral-700 rounded-xl p-12 text-center cursor-pointer hover:border-wine-500 transition" id="drop-zone">
+            <div class="text-5xl mb-3">📋</div>
+            <p class="text-neutral-400 mb-2">Take a photo of the wine list</p>
+            <p class="text-xs text-neutral-600">or click to upload</p>
+            <input type="file" id="scan-input" accept="image/*" capture="environment" class="hidden"
+                   onchange="uploadMenu(this)">
+        </div>
+        <div id="scan-status" class="mt-4 text-center text-neutral-500 text-sm hidden">
+            <span class="inline-block animate-pulse">🔍 Analyzing wine list...</span>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="mt-6 space-y-3 hidden"></div>
+
+    <!-- Tips -->
+    <div class="mt-6 bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-sm text-neutral-500">
+        <p class="font-medium text-neutral-400 mb-1">💡 Tips for best results</p>
+        <ul class="list-disc list-inside space-y-1">
+            <li>Good lighting — avoid glare and shadows</li>
+            <li>Hold the camera steady and parallel to the page</li>
+            <li>Include the full wine name and vintage if visible</li>
+            <li>Works best with printed menus (cursive/handwritten is harder)</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+function uploadMenu(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    document.getElementById('drop-zone').classList.add('hidden');
+    document.getElementById('scan-status').classList.remove('hidden');
+    document.getElementById('results').classList.add('hidden');
+
+    fetch('/api/menu/scan', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('scan-status').classList.add('hidden');
+            const matches = data.matches || [];
+            const container = document.getElementById('results');
+            container.classList.remove('hidden');
+
+            if (!matches.length) {
+                container.innerHTML = '<div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 text-center"><p class="text-neutral-500">Could not identify any wines. Try a clearer photo of the wine list.</p></div>';
+                return;
+            }
+
+            let html = `<div class="flex items-center gap-2 mb-4"><span class="text-xl">🍷</span><h2 class="text-lg font-semibold">Found ${matches.length} wines</h2></div>`;
+            matches.forEach(m => {
+                const stars = '★'.repeat(Math.min(m.score, 5)) + '☆'.repeat(Math.max(5 - Math.min(m.score, 5), 0));
+                html += `
+                    <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1 min-w-0">
+                                <a href="/wine/${m.wine_id}" class="text-lg font-semibold text-wine-300 hover:text-wine-200">${m.display}</a>
+                                <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+                                    <span>${m.region}</span>
+                                    <span>·</span>
+                                    <span class="capitalize">${m.wine_type}</span>
+                                    ${m.varietal ? `<span>·</span><span>${m.varietal}</span>` : ''}
+                                </div>
+                                ${m.menu_text ? `<div class="text-xs text-neutral-600 mt-1 italic">"${m.menu_text}"</div>` : ''}
+                                ${m.menu_price ? `<div class="text-sm text-wine-400 font-medium mt-1">$${m.menu_price.toFixed(2)}</div>` : ''}
+                                <div class="flex items-center gap-2 mt-2">
+                                    <a href="/wine/${m.wine_id}" class="text-xs text-wine-400 hover:underline">View details →</a>
+                                    <button onclick="addToWishlist('${m.wine_id}', this)" class="text-xs text-neutral-400 hover:text-wine-300 transition">☆ Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(() => {
+            document.getElementById('scan-status').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('results').innerHTML = '<div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 text-center"><p class="text-red-400">Analysis failed. Try again with a clearer photo.</p></div>';
+        });
+}
+
+function addToWishlist(wineId, btn) {
+    fetch('/api/wines/wishlist/' + wineId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.textContent = data.saved ? '★ Saved' : '☆ Save';
+            btn.classList.toggle('text-wine-300', data.saved);
+            btn.classList.toggle('text-neutral-400', !data.saved);
+        })
+        .catch(() => {});
+}
+</script>
+{% endblock %}

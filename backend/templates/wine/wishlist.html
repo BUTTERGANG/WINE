@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Wishlist{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-1">⭐ Wishlist</h1>
+    <p class="text-neutral-500 text-sm mb-6">Wines you want to try</p>
+
+    {% if not user %}
+    <div class="text-center py-16">
+        <div class="text-6xl mb-4">⭐</div>
+        <p class="text-neutral-500 mb-4">Log in to save wines to your wishlist.</p>
+        <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-6 py-2.5 rounded-lg text-white font-medium transition">Log In</a>
+    </div>
+    {% else %}
+
+    <div id="wishlist-items" 
+         hx-get="/api/wines/wishlist"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="text-neutral-500 text-center py-8">Loading wishlist...</div>
+    </div>
+
+    {% endif %}
+</div>
+
+<script>
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'wishlist-items') {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            const items = data.items || [];
+            const container = document.getElementById('wishlist-items');
+            if (!items.length) {
+                container.innerHTML = '<div class="text-neutral-500 text-center py-8"><p>Nothing saved yet.</p><p class="text-sm mt-2">Browse wines and tap ⭐ to save them here.</p></div>';
+                return;
+            }
+            container.innerHTML = items.map(item => `
+                <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <a href="/wine/${item.wine_id}" class="text-lg font-semibold text-wine-300 hover:text-wine-200">${item.display}</a>
+                            <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+                                <span>${item.region}</span>
+                                <span>·</span>
+                                <span class="capitalize">${item.wine_type}</span>
+                                ${item.varietal ? `<span>·</span><span>${item.varietal}</span>` : ''}
+                            </div>
+                            <div class="text-xs text-neutral-500 mt-1">Saved ${new Date(item.added_at).toLocaleDateString()}</div>
+                        </div>
+                        <button onclick="removeFromWishlist('${item.wine_id}', this)" 
+                                class="text-xs text-neutral-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-neutral-800">
+                            ✕ Remove
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) { console.error('Wishlist render error:', e); }
+    }
+});
+
+function removeFromWishlist(wineId, btn) {
+    fetch('/api/wines/wishlist/' + wineId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.saved) {
+                btn.closest('.mb-3').remove();
+            }
+        })
+        .catch(() => {});
+}
+</script>
+{% endblock %}

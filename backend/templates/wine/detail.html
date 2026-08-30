@@ -29,10 +29,15 @@
         <p class="text-neutral-400 mt-4 text-sm">{{ wine.description }}</p>
         {% endif %}
 
-        <div class="mt-6">
+        <div class="mt-6 flex flex-wrap gap-3">
             <a href="/wine/add?wine_id={{ wine.id }}" class="inline-block bg-wine-600 hover:bg-wine-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
-                🍷 Log a tasting of this wine
+                🍷 Log a tasting
             </a>
+            <button id="wishlist-btn" 
+                    class="inline-block bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-medium px-4 py-2 rounded-lg border border-neutral-700 transition"
+                    onclick="toggleWishlist(this)">
+                ⭐ Save
+            </button>
         </div>
     </div>
 
@@ -84,5 +89,30 @@
         })
         .catch(function () { container.innerHTML = '<div class="text-neutral-500 text-center py-8">Could not load tasting notes.</div>'; });
 })();
+
+function toggleWishlist(btn) {
+    fetch('/api/wines/wishlist/{{ wine.id }}', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.saved) {
+                btn.textContent = '⭐ Saved';
+                btn.classList.add('text-wine-300', 'border-wine-500');
+            } else {
+                btn.textContent = '⭐ Save';
+                btn.classList.remove('text-wine-300', 'border-wine-500');
+            }
+        });
+}
+
+// Check initial wishlist status
+fetch('/api/wines/wishlist/{{ wine.id }}/status')
+    .then(r => r.json())
+    .then(data => {
+        if (data.saved) {
+            const btn = document.getElementById('wishlist-btn');
+            btn.textContent = '⭐ Saved';
+            btn.classList.add('text-wine-300', 'border-wine-500');
+        }
+    });
 </script>
 {% endblock %}

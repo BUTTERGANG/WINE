@@ -313,3 +313,10 @@ async def dashboard_page(request: Request, db: AsyncSession = Depends(get_db)):
             "recommendations": recommendations,
         },
     )
+
+
+@router.get("/wishlist", response_class=HTMLResponse)
+async def wishlist_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """User's wishlist / want to try."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("wine/wishlist.html", {"request": request, "user": user})

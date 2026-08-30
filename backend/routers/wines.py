@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models.wine import Wine, TastingNote
+from backend.models.wine import Wine, TastingNote, WishlistEntry
 from backend.models.location import Location
 from backend.models.user import User
 from backend.services.auth import get_current_user
@@ -365,6 +365,98 @@ async def get_wine_reviews(wine_id: str, request: Request, db: AsyncSession = De
         }
         for n in notes
     ]}
+
+
+# ── Wishlist ────────────────────────────────────────────────────────
+
+
+@router.get("/wishlist")
+async def get_wishlist(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current user's wishlist."""
+    user = await get_current_user(request, db)
+    if not user:
+        return {"items": []}
+
+    result = await db.execute(
+        select(WishlistEntry)
+        .where(WishlistEntry.user_id == user.id)
+        .order_by(WishlistEntry.added_at.desc())
+    )
+    entries = result.scalars().all()
+
+    return {"items": [
+        {
+            "id": e.id,
+            "wine_id": e.wine.id,
+            "producer": e.wine.producer,
+            "name": e.wine.name,
+            "vintage": e.wine.vintage,
+            "region": e.wine.region,
+            "varietal": e.wine.varietal,
+            "wine_type": e.wine.wine_type,
+            "display": e.wine.display_name,
+            "notes": e.notes,
+            "added_at": e.added_at.isoformat(),
+        }
+        for e in entries
+    ]}
+
+
+@router.post("/wishlist/{wine_id}")
+async def toggle_wishlist(
+    wine_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Add or remove a wine from the wishlist."""
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = await db.execute(select(Wine).where(Wine.id == wine_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Wine not found")
+
+    result = await db.execute(
+        select(WishlistEntry).where(
+            WishlistEntry.user_id == user.id,
+            WishlistEntry.wine_id == wine_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"saved": False}
+
+    entry = WishlistEntry(user_id=user.id, wine_id=wine_id)
+    db.add(entry)
+    await db.commit()
+    return {"saved": True}
+
+
+@router.get("/wishlist/{wine_id}/status")
+async def get_wishlist_status(
+    wine_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if a wine is on the current user's wishlist."""
+    user = await get_current_user(request, db)
+    if not user:
+        return {"saved": False}
+
+    result = await db.execute(
+        select(WishlistEntry).where(
+            WishlistEntry.user_id == user.id,
+            WishlistEntry.wine_id == wine_id,
+        )
+    )
+    return {"saved": result.scalar_one_or_none() is not None}
 
 
 @router.get("/{wine_id}")
