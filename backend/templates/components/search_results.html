@@ -1,0 +1,20 @@
+{% if results %}
+<div class="py-1 max-h-80 overflow-y-auto" id="search-results-inner">
+    {% for r in results %}
+    <a href="/wine/{{ r.id }}" class="flex items-center gap-3 px-3 py-2 hover:bg-neutral-800 transition">
+        <span class="text-lg">🍷</span>
+        <div class="min-w-0">
+            <div class="text-sm text-neutral-200 truncate">{{ r.display }}</div>
+            <div class="text-xs text-neutral-500 truncate">{{ r.region }} · {{ r.varietal }}</div>
+        </div>
+    </a>
+    {% endfor %}
+    {% if has_more %}
+    <a href="/wine/add?q={{ query }}" class="block text-center text-xs text-wine-400 hover:underline py-2 border-t border-neutral-800">More results →</a>
+    {% endif %}
+</div>
+{% else %}
+{% if query %}
+<div class="px-3 py-4 text-center text-xs text-neutral-500">No wines found</div>
+{% endif %}
+{% endif %}

@@ -15,7 +15,7 @@
     </div>
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-10 text-center">
+    <div class="grid grid-cols-4 gap-3 max-w-2xl mx-auto mb-10 text-center">
         <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
             <div class="text-2xl md:text-3xl font-display text-wine-400" data-count="{{ wine_count }}">{{ wine_count }}</div>
             <div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Wines</div>
@@ -25,14 +25,23 @@
             <div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Tastings</div>
         </div>
         <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
+            <div class="text-2xl md:text-3xl font-display text-wine-400" data-count="{{ winery_count }}">{{ winery_count }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Wineries</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
             <div class="text-2xl md:text-3xl font-display text-wine-400" data-count="{{ user_count }}">{{ user_count }}</div>
             <div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Drinkers</div>
         </div>
     </div>
 
-    <!-- Mini Map Preview -->
-    <div id="home-map" class="h-64 md:h-80 rounded-2xl overflow-hidden border border-neutral-800 mb-10" data-map-init="true">
-        <div class="w-full h-full flex items-center justify-center text-neutral-500">Loading map…</div>
+    <!-- Wine of the Day + Mini Map -->
+    <div class="grid md:grid-cols-2 gap-6 mb-10">
+        <div id="wine-of-day">
+            <div class="text-neutral-500 text-center py-8 text-sm">Loading wine of the day…</div>
+        </div>
+        <div id="home-map" class="h-56 md:h-64 rounded-2xl overflow-hidden border border-neutral-800" data-map-init="true">
+            <div class="w-full h-full flex items-center justify-center text-neutral-500">Loading map…</div>
+        </div>
     </div>
 
     <!-- Recent Feed -->
@@ -91,6 +100,27 @@
         .catch(function () {
             container.innerHTML = '<div class="text-neutral-500 text-center py-8">Could not load the feed.</div>';
         });
+
+    // Load wine of the day
+    fetch('/api/wines/wine-of-the-day')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var w = d.wine || d;
+            if (!w || !w.id) return;
+            var container = document.getElementById('wine-of-day');
+            var stars = w.avg_rating ? '★'.repeat(Math.min(w.avg_rating|0,5)) + '☆'.repeat(Math.max(5-Math.min(w.avg_rating|0,5),0)) : '';
+            container.innerHTML = '<a href="/wine/' + encodeURIComponent(w.id) + '" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-wine-700 transition">' +
+                '<div class="flex items-center gap-2 mb-2"><span class="text-lg">🍷</span><span class="text-xs uppercase tracking-wider text-wine-400 font-medium">Wine of the Day</span></div>' +
+                '<div class="font-display text-lg text-wine-300">' + esc(w.display) + '</div>' +
+                '<div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">' +
+                '<span class="capitalize">' + esc(w.wine_type) + '</span><span>·</span><span>' + esc(w.region) + '</span>' +
+                (w.varietal ? '<span>·</span><span>' + esc(w.varietal) + '</span>' : '') +
+                '</div>' +
+                (stars ? '<div class="text-yellow-500 text-sm mt-2">' + stars + '</div>' : '') +
+                (w.note_preview ? '<p class="text-xs text-neutral-500 mt-2 italic">"' + esc(w.note_preview).substring(0, 80) + (w.note_preview.length > 80 ? '…' : '') + '"</p>' : '') +
+                '</a>';
+        })
+        .catch(function () {});
 })();
 </script>
 {% endblock %}

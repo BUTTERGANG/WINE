@@ -1,0 +1,21 @@
+{% if wine %}
+<a href="/wine/{{ wine.id }}" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-wine-700 transition">
+    <div class="flex items-center gap-2 mb-2">
+        <span class="text-lg">🍷</span>
+        <span class="text-xs uppercase tracking-wider text-wine-400 font-medium">Wine of the Day</span>
+    </div>
+    <div class="font-display text-lg text-wine-300">{{ wine.display }}</div>
+    <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+        <span class="capitalize">{{ wine.wine_type }}</span>
+        <span>·</span>
+        <span>{{ wine.region }}</span>
+        {% if wine.varietal %}<span>·</span><span>{{ wine.varietal }}{% endif %}
+    </div>
+    {% if wine.avg_rating %}
+    <div class="text-yellow-500 text-sm mt-2">{{ '★' * wine.avg_rating|round(0, 'floor')|int }}{{ '☆' * (5 - wine.avg_rating|round(0, 'floor')|int) }}</div>
+    {% endif %}
+    {% if wine.note_preview %}
+    <p class="text-xs text-neutral-500 mt-2 italic">"{{ wine.note_preview[:80] }}{% if wine.note_preview|length > 80 %}…{% endif %}"</p>
+    {% endif %}
+</a>
+{% endif %}

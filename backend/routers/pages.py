@@ -40,6 +40,7 @@ async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
     wine_count = (await db.execute(select(func.count()).select_from(Wine))).scalar() or 0
     tasting_count = (await db.execute(select(func.count()).select_from(TastingNote))).scalar() or 0
     user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
+    winery_count = (await db.execute(select(func.count()).select_from(Location).where(Location.venue_type == "winery"))).scalar() or 0
 
     return templates.TemplateResponse(
         "index.html",
@@ -50,6 +51,7 @@ async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
             "wine_count": wine_count,
             "tasting_count": tasting_count,
             "user_count": user_count,
+            "winery_count": winery_count,
         },
     )
 

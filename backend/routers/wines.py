@@ -367,6 +367,44 @@ async def get_wine_reviews(wine_id: str, request: Request, db: AsyncSession = De
     ]}
 
 
+# ── Global Search (HTMX) ────────────────────────────────────────────
+
+
+@router.get("/global-search")
+async def global_search(
+    q: str = Query(""),
+    limit: int = Query(6),
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Global search — returns HTML for HTMX dropdown or JSON."""
+    from backend.services.template import templates
+
+    if not q or len(q) < 2:
+        return templates.TemplateResponse(
+            "components/search_results.html",
+            {"request": request, "results": [], "query": q, "has_more": False},
+        )
+
+    local = await search_local_wines(db, q, limit)
+    results = []
+    for wine in local:
+        results.append({
+            "id": wine.id,
+            "display": wine.display_name,
+            "region": wine.region,
+            "varietal": wine.varietal,
+            "wine_type": wine.wine_type,
+        })
+
+    has_more = len(results) >= limit
+
+    return templates.TemplateResponse(
+        "components/search_results.html",
+        {"request": request, "results": results, "query": q, "has_more": has_more},
+    )
+
+
 # ── Wishlist ────────────────────────────────────────────────────────
 
 
@@ -457,6 +495,52 @@ async def get_wishlist_status(
         )
     )
     return {"saved": result.scalar_one_or_none() is not None}
+
+
+# ── Wine of the Day ─────────────────────────────────────────────────
+
+
+@router.get("/wine-of-the-day")
+async def wine_of_the_day(
+    db: AsyncSession = Depends(get_db),
+):
+    """A random wine with good ratings — wine of the day."""
+    import random as py_random
+
+    # Get all wine IDs
+    result = await db.execute(select(Wine.id))
+    ids = result.scalars().all()
+    all_ids = list(ids)
+    if not all_ids:
+        return {"wine": None}
+
+    wine_id = py_random.choice(all_ids)
+    result = await db.execute(select(Wine).where(Wine.id == wine_id))
+    wine = result.scalar_one_or_none()
+
+    if not wine:
+        return {"wine": None}
+
+    note_result = await db.execute(
+        select(TastingNote).where(TastingNote.wine_id == wine.id).order_by(TastingNote.created_at.desc()).limit(1)
+    )
+    note = note_result.scalar_one_or_none()
+
+    data = {
+        "id": wine.id,
+        "producer": wine.producer,
+        "name": wine.name,
+        "vintage": wine.vintage,
+        "region": wine.region,
+        "varietal": wine.varietal,
+        "wine_type": wine.wine_type,
+        "display": wine.display_name,
+        "avg_rating": None,
+        "note_preview": note.notes if note else None,
+        "note_rating": note.rating if note else None,
+    }
+
+    return data
 
 
 @router.get("/{wine_id}")

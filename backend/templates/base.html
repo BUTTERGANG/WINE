@@ -6,6 +6,10 @@
     <title>{% block title %}WINE{% endblock %} · WINE</title>
     <meta name="description" content="WINE — social wine tracking. Scan a bottle or a glass, pin every pour to a map, rate it, and see what your people are drinking.">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%B7%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#111111">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="WINE">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
@@ -63,7 +67,18 @@
                 </a>
 
                 <!-- Desktop menu -->
-                <div class="hidden md:flex items-center gap-4 text-sm">
+                <div class="hidden md:flex items-center gap-3 text-sm">
+                    <!-- Global search -->
+                    <div class="relative">
+                        <input type="search" id="global-search" placeholder="Search wines, wineries…"
+                               class="w-44 lg:w-56 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-xs text-neutral-300 placeholder-neutral-500 focus:border-wine-500 focus:outline-none focus:ring-1 focus:ring-wine-500 transition"
+                               hx-get="/api/wines/global-search"
+                               hx-trigger="keyup changed delay:300ms"
+                               hx-target="#search-results"
+                               hx-swap="innerHTML"
+                               autocomplete="off">
+                        <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-[1200] hidden"></div>
+                    </div>
                     <a href="/" class="hover:text-wine-400 transition">Home</a>
                     <a href="/map" class="hover:text-wine-400 transition">Map</a>
                     <a href="/wineries" class="hover:text-wine-400 transition">Wineries</a>
@@ -195,6 +210,27 @@
                     };
                     requestAnimationFrame(step);
                 });
+            }
+
+            // Global search dropdown
+            var searchInput = document.getElementById('global-search');
+            var searchResults = document.getElementById('search-results');
+            if (searchInput && searchResults) {
+                searchInput.addEventListener('focus', function () {
+                    if (searchResults.children.length) searchResults.hidden = false;
+                });
+                document.addEventListener('click', function (e) {
+                    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                        searchResults.hidden = true;
+                    }
+                });
+                // Show results when HTMX swaps them in
+                var htmxObserver = new MutationObserver(function () {
+                    if (searchResults.children.length && searchResults.querySelector('[id]')) {
+                        searchResults.hidden = false;
+                    }
+                });
+                htmxObserver.observe(searchResults, { childList: true, subtree: true });
             }
         })();
     </script>

@@ -70,13 +70,18 @@ async def login(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    """Login by email or username. The form field is labelled 'Email or Username'."""
+    # Try email first, then username
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
+    if not user:
+        result = await db.execute(select(User).where(User.username == email))
+        user = result.scalar_one_or_none()
 
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
             "auth/login.html",
-            {"request": request, "error": "Invalid email or password"},
+            {"request": request, "error": "Invalid email/username or password"},
             status_code=400,
         )
 
