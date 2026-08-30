@@ -35,5 +35,7 @@ Thumbs.db
 # Project
 *.db
 *.sqlite
-data/
+data/*.db
+data/*.sqlite
+data/__pycache__/
 logs/
