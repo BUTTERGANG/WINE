@@ -89,6 +89,46 @@ async def search_wines(
     return {"results": results[:limit]}
 
 
+@router.get("/mine/recent")
+async def my_recent_wines(
+    request: Request,
+    limit: int = Query(6),
+    db: AsyncSession = Depends(get_db),
+):
+    """The current user's most recently logged wines — for one-tap re-logging."""
+    user = await get_current_user(request, db)
+    if not user:
+        return {"wines": []}
+
+    last_seen = (
+        select(TastingNote.wine_id, func.max(TastingNote.created_at).label("last"))
+        .where(TastingNote.user_id == user.id)
+        .group_by(TastingNote.wine_id)
+        .subquery()
+    )
+    stmt = (
+        select(Wine)
+        .join(last_seen, Wine.id == last_seen.c.wine_id)
+        .order_by(last_seen.c.last.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    wines = result.scalars().all()
+    return {"wines": [
+        {
+            "id": w.id,
+            "producer": w.producer,
+            "name": w.name,
+            "vintage": w.vintage,
+            "region": w.region,
+            "varietal": w.varietal,
+            "wine_type": w.wine_type,
+            "display": w.display_name,
+        }
+        for w in wines
+    ]}
+
+
 @router.post("/scan")
 async def scan_wine_label(
     request: Request,
@@ -149,13 +189,21 @@ async def create_wine(
             raise HTTPException(status_code=400, detail=f"{key!r} out of range")
         return val
 
-    if not (form.get("producer") or "").strip() or not (form.get("name") or "").strip():
-        raise HTTPException(status_code=400, detail="Producer and name are required")
+    producer = (form.get("producer") or "").strip()
+    name = (form.get("name") or "").strip()
+    if not name and not producer:
+        raise HTTPException(status_code=400, detail="Tell us which wine you're drinking")
+    if not name:  # a single free-text entry lands in `name`
+        name, producer = producer, ""
+
+    rating = _num("rating", int, 1, 5)
+    if rating is None:
+        raise HTTPException(status_code=400, detail="Add a rating (1–5)")
 
     # Get or create the wine
     wine_data = {
-        "producer": form.get("producer", "").strip(),
-        "name": form.get("name", "").strip(),
+        "producer": producer,
+        "name": name,
         "vintage": _num("vintage", int, 1800, 2100),
         "region": form.get("region", ""),
         "country": form.get("country", ""),
@@ -186,7 +234,7 @@ async def create_wine(
         wine_id=wine.id,
         user_id=user.id,
         location_id=location_id,
-        rating=_num("rating", int, 1, 5) or 3,
+        rating=rating,
         appearance=form.get("appearance", ""),
         nose=form.get("nose", ""),
         palate=form.get("palate", ""),

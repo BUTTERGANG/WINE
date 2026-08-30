@@ -1,17 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Add Wine{% endblock %}
+{% block title %}Log a Wine{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-1">Add a Wine</h1>
-    <p class="text-neutral-400 text-sm mb-6">Search for a wine or enter details manually</p>
-
-    <!-- Search -->
-    <div class="relative mb-6">
-        <input type="text" id="wine-search" placeholder="Search by producer, name, varietal, region…"
-            class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none focus:ring-1 focus:ring-wine-500"
-            autocomplete="off">
-        <div id="search-results" class="absolute z-10 w-full mt-1 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl max-h-64 overflow-y-auto hidden"></div>
-    </div>
+<div class="max-w-xl mx-auto px-4 py-8 pb-28">
+    <h1 class="text-2xl font-bold mb-1">Log a wine</h1>
+    <p class="text-neutral-400 text-sm mb-6">Two taps: what you're drinking and how good it is. The rest is optional.</p>
 
     {% if not user %}
     <div class="bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg px-4 py-3 text-sm mb-4">
@@ -19,180 +11,222 @@
     </div>
     {% endif %}
 
-    <form id="wine-form" class="space-y-5 bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+    <form id="wine-form" class="space-y-6">
         <div id="form-error" class="hidden bg-red-900/30 border border-red-700 text-red-300 rounded-lg px-4 py-2 text-sm"></div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-producer">Producer *</label>
-                <input id="f-producer" type="text" name="producer" required value="{{ prefill.producer if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-name">Name *</label>
-                <input id="f-name" type="text" name="name" required value="{{ prefill.name if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-vintage">Vintage</label>
-                <input id="f-vintage" type="number" name="vintage" min="1800" max="2100" placeholder="2020" value="{{ prefill.vintage if prefill and prefill.vintage else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-region">Region</label>
-                <input id="f-region" type="text" name="region" placeholder="Napa Valley" value="{{ prefill.region if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-varietal">Varietal</label>
-                <input id="f-varietal" type="text" name="varietal" placeholder="Cabernet Sauvignon" value="{{ prefill.varietal if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-country">Country</label>
-                <input id="f-country" type="text" name="country" placeholder="France" value="{{ prefill.country if prefill else '' }}" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-sm text-neutral-300 mb-1" for="f-type">Type</label>
-                <select id="f-type" name="wine_type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm">
-                    {% set t = prefill.wine_type if prefill else 'red' %}
-                    <option value="red" {{ 'selected' if t == 'red' }}>Red</option>
-                    <option value="white" {{ 'selected' if t == 'white' }}>White</option>
-                    <option value="rosé" {{ 'selected' if t == 'rosé' }}>Rosé</option>
-                    <option value="sparkling" {{ 'selected' if t == 'sparkling' }}>Sparkling</option>
-                    <option value="fortified" {{ 'selected' if t == 'fortified' }}>Fortified</option>
-                    <option value="dessert" {{ 'selected' if t == 'dessert' }}>Dessert</option>
-                </select>
-            </div>
-        </div>
-
-        <hr class="border-neutral-800">
-
-        <!-- Rating -->
+        <!-- 1 · What are you drinking? -->
         <div>
-            <label class="block text-sm text-neutral-300 mb-2">Rating</label>
-            <div class="flex gap-1" id="star-rating" role="radiogroup" aria-label="Rating out of 5">
+            <label class="block text-sm font-medium text-neutral-200 mb-2" for="wine-search">What are you drinking?</label>
+
+            <div id="search-wrap" class="relative">
+                <input id="wine-search" type="text" autocomplete="off" autofocus
+                    placeholder="Producer, name, region…"
+                    class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-base focus:border-wine-500 focus:outline-none focus:ring-1 focus:ring-wine-500">
+                <div id="search-results" class="absolute z-20 w-full mt-1 rounded-lg bg-neutral-900 border border-neutral-700 shadow-xl max-h-64 overflow-y-auto hidden"></div>
+            </div>
+
+            <div id="picked" class="hidden items-center justify-between gap-3 bg-neutral-900 border border-wine-800 rounded-xl px-4 py-3">
+                <div class="min-w-0">
+                    <div id="picked-name" class="font-medium text-wine-200 truncate"></div>
+                    <div id="picked-meta" class="text-xs text-neutral-400 truncate"></div>
+                </div>
+                <button type="button" id="picked-change" class="text-xs text-neutral-400 hover:text-white flex-shrink-0 underline">change</button>
+            </div>
+
+            <div id="recent" class="mt-2 flex flex-wrap gap-2"></div>
+
+            <!-- hidden wine identity -->
+            <input type="hidden" name="producer" id="h-producer">
+            <input type="hidden" name="name" id="h-name">
+            <input type="hidden" name="vintage" id="h-vintage">
+            <input type="hidden" name="region" id="h-region">
+            <input type="hidden" name="varietal" id="h-varietal">
+            <input type="hidden" name="country" id="h-country">
+            <input type="hidden" name="wine_type" id="h-wine_type" value="red">
+        </div>
+
+        <!-- 2 · Rating -->
+        <div>
+            <label class="block text-sm font-medium text-neutral-200 mb-2">Your rating</label>
+            <div class="flex gap-2" id="star-rating" role="radiogroup" aria-label="Rating out of 5">
                 {% for i in range(1, 6) %}
-                <span class="star" data-value="{{ i }}" role="radio" tabindex="0" aria-label="{{ i }} star{{ 's' if i != 1 }}" aria-checked="false">☆</span>
+                <span class="star" data-value="{{ i }}" role="radio" tabindex="0" aria-label="{{ i }} star{{ 's' if i != 1 }}" aria-checked="false" style="font-size:2.25rem">☆</span>
                 {% endfor %}
-                <input type="hidden" name="rating" id="rating-input" value="3">
+                <input type="hidden" name="rating" id="rating-input" value="">
+            </div>
+            <p id="rating-hint" class="text-xs text-neutral-500 mt-1">Tap a star</p>
+        </div>
+
+        <!-- 3 · Quick extras -->
+        <div class="border border-neutral-800 rounded-xl overflow-hidden">
+            <button type="button" class="disclosure w-full flex items-center justify-between px-4 py-3 text-sm text-neutral-200 hover:bg-neutral-900" aria-expanded="false" aria-controls="extras">
+                <span>＋ Note, photo, place</span>
+                <span class="chev text-neutral-500">▾</span>
+            </button>
+            <div id="extras" class="px-4 pb-4 space-y-4 border-t border-neutral-800" hidden>
+                <div>
+                    <label class="block text-xs text-neutral-400 mb-1" for="f-notes">Note</label>
+                    <textarea id="f-notes" name="notes" rows="2" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Quick thought…"></textarea>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" id="photo-btn" class="border border-neutral-700 hover:border-wine-500 rounded-lg px-3 py-2 text-sm transition">📷 Photo</button>
+                    <button type="button" id="here-btn" class="border border-neutral-700 hover:border-wine-500 rounded-lg px-3 py-2 text-sm transition">📍 I'm here</button>
+                    <button type="button" id="place-btn" class="border border-neutral-700 hover:border-wine-500 rounded-lg px-3 py-2 text-sm transition">🔎 Find a place</button>
+                    <input type="file" id="photo-input" accept="image/*" class="hidden">
+                    <input type="hidden" name="photo_url" id="photo-url-input">
+                    <input type="hidden" name="lat" id="lat-input">
+                    <input type="hidden" name="lon" id="lon-input">
+                    <input type="hidden" name="location_name" id="location-name-input">
+                    <input type="hidden" name="address" id="address-input">
+                    <input type="hidden" name="venue_type" id="venue-type-input">
+                </div>
+
+                <div id="place-search-wrap" class="hidden">
+                    <input id="place-search" type="text" autocomplete="off" placeholder="Restaurant, winery, bar…"
+                        class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none">
+                </div>
+
+                <div id="place-tag" class="hidden items-center gap-2 text-sm text-green-400">
+                    <span>📍 <span id="place-tag-name"></span></span>
+                    <button type="button" id="place-clear" class="text-neutral-500 hover:text-white text-xs">✕</button>
+                </div>
+
+                <div id="photo-preview" class="hidden">
+                    <img id="photo-img" alt="Selected photo preview" class="h-28 rounded-lg object-cover border border-neutral-700">
+                    <button type="button" id="photo-remove" class="block text-xs text-red-400 mt-1 hover:underline">Remove</button>
+                </div>
             </div>
         </div>
 
-        <!-- Tasting Notes -->
-        <div>
-            <label class="block text-sm text-neutral-300 mb-2">Tasting Notes</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs text-neutral-400" for="f-appearance">Appearance</label>
-                    <input id="f-appearance" type="text" name="appearance" placeholder="Clear, deep ruby" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+        <!-- 4 · Full detail -->
+        <div class="border border-neutral-800 rounded-xl overflow-hidden">
+            <button type="button" class="disclosure w-full flex items-center justify-between px-4 py-3 text-sm text-neutral-200 hover:bg-neutral-900" aria-expanded="false" aria-controls="details">
+                <span>More wine details</span>
+                <span class="chev text-neutral-500">▾</span>
+            </button>
+            <div id="details" class="px-4 pb-4 space-y-4 border-t border-neutral-800" hidden>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1" for="d-vintage">Vintage</label>
+                        <input id="d-vintage" type="number" min="1800" max="2100" placeholder="2020" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1" for="d-region">Region</label>
+                        <input id="d-region" type="text" placeholder="Napa Valley" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1" for="d-varietal">Varietal</label>
+                        <input id="d-varietal" type="text" placeholder="Cabernet" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1" for="d-country">Country</label>
+                        <input id="d-country" type="text" placeholder="France" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs text-neutral-400 mb-1" for="d-type">Type</label>
+                        <select id="d-type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                            <option value="red">Red</option><option value="white">White</option>
+                            <option value="rosé">Rosé</option><option value="sparkling">Sparkling</option>
+                            <option value="fortified">Fortified</option><option value="dessert">Dessert</option>
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <label class="text-xs text-neutral-400" for="f-nose">Nose</label>
-                    <input id="f-nose" type="text" name="nose" placeholder="Blackberry, vanilla, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label class="text-xs text-neutral-400" for="f-appearance">Appearance</label>
+                        <input id="f-appearance" type="text" name="appearance" placeholder="Deep ruby" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-nose">Nose</label>
+                        <input id="f-nose" type="text" name="nose" placeholder="Blackberry, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-palate">Palate</label>
+                        <input id="f-palate" type="text" name="palate" placeholder="Full, smooth tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-finish">Finish</label>
+                        <input id="f-finish" type="text" name="finish" placeholder="Long, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
                 </div>
-                <div>
-                    <label class="text-xs text-neutral-400" for="f-palate">Palate</label>
-                    <input id="f-palate" type="text" name="palate" placeholder="Full-bodied, smooth tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-body">Body</label>
+                        <select id="f-body" name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="light">Light</option><option value="medium">Medium</option><option value="full">Full</option></select></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-sweetness">Sweetness</label>
+                        <select id="f-sweetness" name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="dry">Dry</option><option value="off-dry">Off-Dry</option><option value="medium">Medium</option><option value="sweet">Sweet</option></select></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-acidity">Acidity</label>
+                        <select id="f-acidity" name="acidity" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-tannins">Tannins</label>
+                        <select id="f-tannins" name="tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
                 </div>
-                <div>
-                    <label class="text-xs text-neutral-400" for="f-finish">Finish</label>
-                    <input id="f-finish" type="text" name="finish" placeholder="Long, lingering, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-pairing">Food pairing</label>
+                        <input id="f-pairing" type="text" name="food_pairing" placeholder="Grilled steak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-price">Price paid ($)</label>
+                        <input id="f-price" type="number" step="0.01" min="0" name="price_paid" placeholder="25.00" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
                 </div>
-            </div>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-body">Body</label>
-                <select id="f-body" name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
-                    <option value="">–</option><option value="light">Light</option><option value="medium">Medium</option><option value="full">Full</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-sweetness">Sweetness</label>
-                <select id="f-sweetness" name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
-                    <option value="">–</option><option value="dry">Dry</option><option value="off-dry">Off-Dry</option><option value="medium">Medium</option><option value="sweet">Sweet</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-acidity">Acidity</label>
-                <select id="f-acidity" name="acidity" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
-                    <option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-tannins">Tannins</label>
-                <select id="f-tannins" name="tannins" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm">
-                    <option value="">–</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
-                </select>
             </div>
         </div>
 
-        <!-- Location -->
-        <hr class="border-neutral-800">
-        <div>
-            <label class="block text-sm text-neutral-300 mb-2" for="location-search">📍 Where were you drinking?</label>
-            <input id="location-search" type="text" placeholder="Search for a restaurant, winery, bar…"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:border-wine-500 focus:outline-none"
-                autocomplete="off">
-            <div id="location-results" class="mt-1 text-sm text-neutral-400" aria-live="polite"></div>
-            <input type="hidden" name="lat" id="lat-input">
-            <input type="hidden" name="lon" id="lon-input">
-            <input type="hidden" name="location_name" id="location-name-input">
-            <input type="hidden" name="address" id="address-input">
-            <input type="hidden" name="venue_type" id="venue-type-input">
-        </div>
-
-        <!-- Notes -->
-        <div>
-            <label class="block text-sm text-neutral-300 mb-1" for="f-notes">Notes</label>
-            <textarea id="f-notes" name="notes" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:border-wine-500 focus:outline-none" placeholder="Any additional thoughts…"></textarea>
-        </div>
-
-        <!-- Photo -->
-        <div>
-            <label class="block text-sm text-neutral-300 mb-1">📷 Photo</label>
-            <div class="border-2 border-dashed border-neutral-700 rounded-xl p-6 text-center cursor-pointer hover:border-wine-500 transition"
-                 id="photo-drop-zone" role="button" tabindex="0" aria-label="Add a photo">
-                <div class="text-2xl mb-2" aria-hidden="true">📸</div>
-                <p class="text-sm text-neutral-400">Add a photo of the bottle or glass</p>
-                <input type="file" id="photo-input" accept="image/*" class="hidden">
-                <input type="hidden" name="photo_url" id="photo-url-input">
-            </div>
-            <div id="photo-preview" class="mt-2 hidden">
-                <img id="photo-img" alt="Selected photo preview" class="h-32 rounded-lg object-cover border border-neutral-700">
-                <button type="button" id="photo-remove" class="text-xs text-red-400 mt-1 hover:underline">Remove</button>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-pairing">Food Pairing</label>
-                <input id="f-pairing" type="text" name="food_pairing" placeholder="Grilled steak, roasted vegetables" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs text-neutral-400 mb-1" for="f-price">Price Paid ($)</label>
-                <input id="f-price" type="number" name="price_paid" step="0.01" min="0" placeholder="25.00" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
-            </div>
-        </div>
         <label class="flex items-center gap-2">
             <input type="checkbox" name="is_public" value="1" checked id="is-public" class="rounded border-neutral-700 bg-neutral-800">
             <span class="text-sm text-neutral-300">Share with community</span>
         </label>
-
-        <button type="submit" id="submit-btn" class="w-full bg-wine-600 hover:bg-wine-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition">
-            🍷 Save Tasting
-        </button>
     </form>
+</div>
+
+<!-- Sticky save bar -->
+<div class="fixed bottom-0 inset-x-0 bg-neutral-950/95 backdrop-blur border-t border-neutral-800 p-3 z-[1050]">
+    <div class="max-w-xl mx-auto">
+        <button type="submit" form="wine-form" id="submit-btn"
+            class="w-full bg-wine-600 hover:bg-wine-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition text-base">
+            🍷 Save tasting
+        </button>
+    </div>
 </div>
 
 <script>
 (function () {
     const form = document.getElementById('wine-form');
     const errBox = document.getElementById('form-error');
+    const searchWrap = document.getElementById('search-wrap');
+    const searchInput = document.getElementById('wine-search');
+    const searchResults = document.getElementById('search-results');
+    const picked = document.getElementById('picked');
+    const recentBox = document.getElementById('recent');
 
-    // ---- Star rating (mouse + keyboard) ----
+    const H = {
+        producer: document.getElementById('h-producer'),
+        name: document.getElementById('h-name'),
+        vintage: document.getElementById('h-vintage'),
+        region: document.getElementById('h-region'),
+        varietal: document.getElementById('h-varietal'),
+        country: document.getElementById('h-country'),
+        wine_type: document.getElementById('h-wine_type'),
+    };
+    const D = {
+        vintage: document.getElementById('d-vintage'),
+        region: document.getElementById('d-region'),
+        varietal: document.getElementById('d-varietal'),
+        country: document.getElementById('d-country'),
+        type: document.getElementById('d-type'),
+    };
+
+    // ---- Disclosure sections ----
+    document.querySelectorAll('.disclosure').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const panel = document.getElementById(btn.getAttribute('aria-controls'));
+            const open = panel.hidden;
+            panel.hidden = !open;
+            btn.setAttribute('aria-expanded', String(open));
+            btn.querySelector('.chev').textContent = open ? '▴' : '▾';
+        });
+    });
+
+    // ---- Star rating ----
     const stars = Array.from(document.querySelectorAll('.star'));
+    const ratingInput = document.getElementById('rating-input');
+    const ratingHint = document.getElementById('rating-hint');
     function setRating(val) {
-        document.getElementById('rating-input').value = val;
+        ratingInput.value = val;
+        ratingHint.textContent = ['', 'Nope', 'Meh', 'Solid', 'Really good', 'Outstanding'][val] || '';
+        ratingHint.classList.remove('text-red-400');
         stars.forEach(function (el) {
             const v = parseInt(el.dataset.value);
             el.textContent = v <= val ? '★' : '☆';
@@ -203,110 +237,205 @@
     stars.forEach(function (el) {
         el.addEventListener('click', function () { setRating(parseInt(el.dataset.value)); });
         el.addEventListener('keydown', function (e) {
-            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setRating(parseInt(el.dataset.value)); }
-            else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); const n = Math.min(5, parseInt(el.dataset.value) + 1); setRating(n); stars[n - 1].focus(); }
-            else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.max(1, parseInt(el.dataset.value) - 1); setRating(n); stars[n - 1].focus(); }
+            const v = parseInt(el.dataset.value);
+            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setRating(v); }
+            else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); const n = Math.min(5, v + 1); setRating(n); stars[n - 1].focus(); }
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.max(1, v - 1); setRating(n); stars[n - 1].focus(); }
         });
     });
-    setRating(3);
 
-    // ---- Wine autocomplete ----
-    const searchInput = document.getElementById('wine-search');
-    const searchResults = document.getElementById('search-results');
+    // ---- Wine identity ----
+    function applyWine(w) {
+        H.producer.value = w.producer || '';
+        H.name.value = w.name || w.display || '';
+        H.vintage.value = w.vintage || '';
+        H.region.value = w.region || '';
+        H.varietal.value = w.varietal || '';
+        H.country.value = w.country || '';
+        H.wine_type.value = w.wine_type || 'red';
+        // mirror into the detail panel so it's editable
+        D.vintage.value = w.vintage || '';
+        D.region.value = w.region || '';
+        D.varietal.value = w.varietal || '';
+        D.country.value = w.country || '';
+        if (w.wine_type) D.type.value = w.wine_type;
+
+        document.getElementById('picked-name').textContent = w.display || [w.producer, w.name].filter(Boolean).join(' ');
+        document.getElementById('picked-meta').textContent = [w.region, w.varietal || w.wine_type].filter(Boolean).join(' · ');
+        searchWrap.classList.add('hidden');
+        recentBox.classList.add('hidden');
+        picked.classList.remove('hidden');
+        picked.classList.add('flex');
+        searchResults.classList.add('hidden');
+    }
+    function clearWine() {
+        Object.values(H).forEach(function (el) { if (el.id !== 'h-wine_type') el.value = ''; });
+        H.wine_type.value = 'red';
+        picked.classList.add('hidden');
+        picked.classList.remove('flex');
+        searchWrap.classList.remove('hidden');
+        recentBox.classList.remove('hidden');
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    document.getElementById('picked-change').addEventListener('click', clearWine);
+
+    // keep hidden identity in sync if the user edits the detail panel
+    D.vintage.addEventListener('input', function () { H.vintage.value = this.value; });
+    D.region.addEventListener('input', function () { H.region.value = this.value; });
+    D.varietal.addEventListener('input', function () { H.varietal.value = this.value; });
+    D.country.addEventListener('input', function () { H.country.value = this.value; });
+    D.type.addEventListener('change', function () { H.wine_type.value = this.value; });
+
+    // ---- Autocomplete ----
     let searchTimer;
     searchInput.addEventListener('input', function () {
         clearTimeout(searchTimer);
         const q = this.value.trim();
         if (q.length < 2) { searchResults.classList.add('hidden'); return; }
         searchTimer = setTimeout(function () {
-            fetch('/api/wines/search?q=' + encodeURIComponent(q) + '&limit=10')
+            fetch('/api/wines/search?q=' + encodeURIComponent(q) + '&limit=8')
                 .then(r => r.json())
                 .then(function (data) {
                     const results = data.results || [];
-                    if (!results.length) {
-                        searchResults.innerHTML = '<div class="p-3 text-neutral-400 text-sm">No matches found</div>';
-                        searchResults.classList.remove('hidden');
-                        return;
-                    }
                     searchResults.innerHTML = '';
+                    if (!results.length) {
+                        const d = document.createElement('div');
+                        d.className = 'p-3 text-neutral-400 text-sm';
+                        d.textContent = '“' + q + '” isn’t in the database — no problem, we’ll add it when you save.';
+                        searchResults.appendChild(d);
+                    }
                     results.forEach(function (r) {
-                        const row = document.createElement('div');
-                        row.className = 'p-3 border-b border-neutral-800 hover:bg-neutral-800 cursor-pointer text-sm';
+                        const row = document.createElement('button');
+                        row.type = 'button';
+                        row.className = 'block w-full text-left p-3 border-b border-neutral-800 hover:bg-neutral-800 text-sm';
                         row.innerHTML = '<div class="font-medium">' + esc(r.display) + '</div>' +
                             '<div class="text-xs text-neutral-400">' + esc([r.region, r.varietal || r.wine_type].filter(Boolean).join(' · ')) + '</div>';
-                        row.addEventListener('click', function () {
-                            form.producer.value = r.producer || '';
-                            form.name.value = r.name || '';
-                            if (r.vintage) form.vintage.value = r.vintage;
-                            form.region.value = r.region || '';
-                            form.varietal.value = r.varietal || '';
-                            if (r.wine_type) form.wine_type.value = r.wine_type;
-                            searchInput.value = ((r.producer || '') + ' ' + (r.name || '')).trim();
-                            searchResults.classList.add('hidden');
-                        });
+                        row.addEventListener('click', function () { applyWine(r); });
                         searchResults.appendChild(row);
                     });
                     searchResults.classList.remove('hidden');
                 })
                 .catch(function () { searchResults.classList.add('hidden'); });
-        }, 300);
+        }, 250);
     });
     document.addEventListener('click', function (e) {
         if (!searchResults.contains(e.target) && e.target !== searchInput) searchResults.classList.add('hidden');
     });
 
-    // ---- Location search ----
-    const locInput = document.getElementById('location-search');
-    const locResults = document.getElementById('location-results');
-    let locTimer;
-    locInput.addEventListener('input', function () {
-        clearTimeout(locTimer);
-        const q = this.value.trim();
-        if (q.length < 3) { locResults.textContent = ''; return; }
-        locResults.textContent = 'Searching…';
-        locTimer = setTimeout(function () {
-            fetch('/api/locations/geocode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'address=' + encodeURIComponent(q),
-            })
-                .then(r => r.ok ? r.json() : Promise.reject())
-                .then(function (data) {
-                    document.getElementById('lat-input').value = data.lat;
-                    document.getElementById('lon-input').value = data.lon;
-                    document.getElementById('location-name-input').value = q;
-                    document.getElementById('address-input').value = data.display_name || q;
-                    locResults.innerHTML = '<span class="text-green-400">📍 ' + esc(data.display_name || q) + '</span>';
-                })
-                .catch(function () { locResults.textContent = 'No match found for that place.'; });
-        }, 500);
-    });
+    // ---- Recent wines ----
+    {% if user %}
+    fetch('/api/wines/mine/recent')
+        .then(r => r.json())
+        .then(function (data) {
+            (data.wines || []).forEach(function (w) {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'text-xs bg-neutral-900 border border-neutral-700 hover:border-wine-500 rounded-full px-3 py-1.5 transition';
+                chip.textContent = '↻ ' + w.display;
+                chip.addEventListener('click', function () { applyWine(w); });
+                recentBox.appendChild(chip);
+            });
+        })
+        .catch(function () {});
+    {% endif %}
 
-    // ---- Photo upload ----
-    const dropZone = document.getElementById('photo-drop-zone');
+    // ---- Extras: photo ----
     const photoInput = document.getElementById('photo-input');
     const preview = document.getElementById('photo-preview');
-    dropZone.addEventListener('click', function () { photoInput.click(); });
-    dropZone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInput.click(); } });
+    document.getElementById('photo-btn').addEventListener('click', function () { photoInput.click(); });
     document.getElementById('photo-remove').addEventListener('click', function () {
         document.getElementById('photo-url-input').value = '';
-        preview.classList.add('hidden'); dropZone.classList.remove('hidden'); photoInput.value = '';
+        preview.classList.add('hidden');
+        photoInput.value = '';
     });
     photoInput.addEventListener('change', function () {
         if (!photoInput.files || !photoInput.files[0]) return;
         const file = photoInput.files[0];
-        dropZone.classList.add('hidden');
         preview.classList.remove('hidden');
         document.getElementById('photo-img').src = URL.createObjectURL(file);
         const fd = new FormData(); fd.append('file', file);
         fetch('/api/upload/photo', { method: 'POST', body: fd })
             .then(r => r.ok ? r.json() : Promise.reject())
             .then(function (data) { document.getElementById('photo-url-input').value = data.url || ''; })
-            .catch(function () {
-                preview.classList.add('hidden'); dropZone.classList.remove('hidden');
-                showError('Photo upload failed — you can still save without it.');
-            });
+            .catch(function () { showError('Photo upload failed — you can still save without it.'); });
     });
+
+    // ---- Extras: location ----
+    const placeTag = document.getElementById('place-tag');
+    const hereBtn = document.getElementById('here-btn');
+    function setPlace(p) {
+        document.getElementById('lat-input').value = p.lat;
+        document.getElementById('lon-input').value = p.lon;
+        document.getElementById('location-name-input').value = p.name || '';
+        document.getElementById('address-input').value = p.address || p.display_name || '';
+        document.getElementById('venue-type-input').value = p.venue_type || 'other';
+        document.getElementById('place-tag-name').textContent = p.name || 'Location set';
+        placeTag.classList.remove('hidden');
+        placeTag.classList.add('flex');
+        document.getElementById('place-search-wrap').classList.add('hidden');
+    }
+    document.getElementById('place-clear').addEventListener('click', function () {
+        ['lat-input', 'lon-input', 'location-name-input', 'address-input', 'venue-type-input'].forEach(function (id) { document.getElementById(id).value = ''; });
+        placeTag.classList.add('hidden');
+        placeTag.classList.remove('flex');
+    });
+    hereBtn.addEventListener('click', function () {
+        if (!navigator.geolocation) { showError('Location is not available on this device.'); return; }
+        hereBtn.disabled = true; hereBtn.textContent = '📍 Locating…';
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            fetch('/api/locations/reverse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude,
+            })
+                .then(r => r.json())
+                .then(setPlace)
+                .catch(function () { setPlace({ lat: pos.coords.latitude, lon: pos.coords.longitude, name: 'Dropped pin' }); })
+                .finally(function () { hereBtn.disabled = false; hereBtn.textContent = '📍 I\'m here'; });
+        }, function () {
+            hereBtn.disabled = false; hereBtn.textContent = '📍 I\'m here';
+            showError('Could not get your location.');
+        });
+    });
+
+    const placeSearchWrap = document.getElementById('place-search-wrap');
+    const placeSearch = document.getElementById('place-search');
+    document.getElementById('place-btn').addEventListener('click', function () {
+        placeSearchWrap.classList.toggle('hidden');
+        if (!placeSearchWrap.classList.contains('hidden')) placeSearch.focus();
+    });
+    let placeTimer;
+    placeSearch.addEventListener('input', function () {
+        clearTimeout(placeTimer);
+        const q = this.value.trim();
+        if (q.length < 3) return;
+        placeTimer = setTimeout(function () {
+            fetch('/api/locations/geocode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'address=' + encodeURIComponent(q),
+            })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(function (d) { setPlace({ lat: d.lat, lon: d.lon, name: q, address: d.display_name }); })
+                .catch(function () {});
+        }, 500);
+    });
+
+    // ---- Prefill from ?wine_id ----
+    {% if prefill %}
+    applyWine({
+        id: "{{ prefill.id }}",
+        producer: {{ prefill.producer|tojson }},
+        name: {{ prefill.name|tojson }},
+        vintage: {{ prefill.vintage|tojson }},
+        region: {{ prefill.region|tojson }},
+        varietal: {{ prefill.varietal|tojson }},
+        country: {{ prefill.country|tojson }},
+        wine_type: {{ prefill.wine_type|tojson }},
+        display: {{ prefill.display_name|tojson }}
+    });
+    {% endif %}
 
     // ---- Submit ----
     function showError(msg) { errBox.textContent = msg; errBox.classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -314,6 +443,23 @@
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         errBox.classList.add('hidden');
+
+        // free-text wine → name
+        if (!H.name.value.trim() && searchInput.value.trim() && !searchWrap.classList.contains('hidden')) {
+            H.name.value = searchInput.value.trim();
+        }
+        if (!H.name.value.trim() && !H.producer.value.trim()) {
+            showError('Tell us which wine you\'re drinking.');
+            searchInput.focus();
+            return;
+        }
+        if (!ratingInput.value) {
+            document.getElementById('rating-hint').textContent = 'Tap a star to rate it';
+            document.getElementById('rating-hint').classList.add('text-red-400');
+            document.getElementById('star-rating').scrollIntoView({ block: 'center', behavior: 'smooth' });
+            return;
+        }
+
         const btn = document.getElementById('submit-btn');
         btn.disabled = true; btn.textContent = 'Saving…';
         fetch('/api/wines', { method: 'POST', body: new FormData(form) })
@@ -325,7 +471,7 @@
             })
             .catch(function (ex) {
                 showError(ex.message);
-                btn.disabled = false; btn.textContent = '🍷 Save Tasting';
+                btn.disabled = false; btn.textContent = '🍷 Save tasting';
             });
     });
 })();

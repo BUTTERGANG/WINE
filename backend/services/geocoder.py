@@ -52,6 +52,56 @@ async def geocode_address(address: str) -> Optional[tuple[float, float, str]]:
     return None
 
 
+_VENUE_KEYS = ("bar", "pub", "restaurant", "cafe", "winery", "wine_bar", "amenity", "shop", "leisure")
+_VENUE_TYPE_MAP = {
+    "restaurant": "restaurant", "cafe": "restaurant", "fast_food": "restaurant",
+    "bar": "bar", "pub": "bar", "wine_bar": "bar", "biergarten": "bar",
+    "winery": "winery", "wine": "shop", "alcohol": "shop",
+}
+
+
+async def reverse_geocode(lat: float, lon: float) -> Optional[dict]:
+    """Resolve coordinates to a short venue name + address."""
+    async with _nominatim_lock:
+        await _throttle()
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "https://nominatim.openstreetmap.org/reverse",
+                    params={"lat": lat, "lon": lon, "format": "json", "zoom": 18, "addressdetails": 1},
+                    headers={"User-Agent": "WINE-App/1.0 (buttergang.dev)"},
+                )
+                if resp.status_code != 200:
+                    return None
+                data = resp.json()
+        except Exception:
+            return None
+
+    addr = data.get("address", {}) or {}
+    name = data.get("name") or ""
+    for key in _VENUE_KEYS:
+        if addr.get(key):
+            name = addr[key]
+            break
+    if not name:
+        # Fall back to the first meaningful line of the display name.
+        name = (data.get("display_name") or "").split(",")[0].strip()
+
+    venue_type = "other"
+    for key, vt in _VENUE_TYPE_MAP.items():
+        if key in addr or addr.get("amenity") == key or addr.get("shop") == key:
+            venue_type = vt
+            break
+
+    return {
+        "name": name or "Dropped pin",
+        "address": data.get("display_name", ""),
+        "lat": lat,
+        "lon": lon,
+        "venue_type": venue_type,
+    }
+
+
 async def search_venues(query: str) -> list[dict]:
     """Search for venues (restaurants, wineries, bars) matching a query."""
     async with _nominatim_lock:

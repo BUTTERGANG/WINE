@@ -256,6 +256,35 @@ class TestSmoke:
         assert r.status_code == 200
         assert "\n'=cmd" in r.text or ",'=cmd" in r.text
 
+    def test_quick_log_name_only(self):
+        client, uname = self._authed_client()
+        r = client.post("/api/wines", data={"name": f"House Red {uname}", "rating": "4"})
+        assert r.status_code == 200 and r.json()["ok"] is True
+
+    def test_log_requires_a_rating(self):
+        client, uname = self._authed_client()
+        r = client.post("/api/wines", data={"name": f"Unrated {uname}"})
+        assert r.status_code == 400
+
+    def test_log_requires_a_wine(self):
+        client, _ = self._authed_client()
+        r = client.post("/api/wines", data={"rating": "3"})
+        assert r.status_code == 400
+
+    def test_recent_wines_endpoint(self):
+        client, uname = self._authed_client()
+        client.post("/api/wines", data={"name": f"Recent {uname}", "rating": "5"})
+        r = client.get("/api/wines/mine/recent")
+        assert r.status_code == 200
+        wines = r.json()["wines"]
+        assert any(w["name"] == f"Recent {uname}" for w in wines)
+
+    def test_reverse_geocode_shape(self):
+        r = httpx.post(f"{BASE}/api/locations/reverse", data={"lat": 48.8566, "lon": 2.3522})
+        assert r.status_code == 200
+        body = r.json()
+        assert "name" in body and "venue_type" in body
+
     def test_group_detail_new_url(self):
         client, uname = self._authed_client()
         gid = client.post("/api/groups", data={"name": f"URL Group {uname}"}).json()["id"]

@@ -37,9 +37,8 @@ class Wine(Base):
 
     @property
     def display_name(self) -> str:
-        if self.vintage:
-            return f"{self.producer} {self.name} ({self.vintage})"
-        return f"{self.producer} {self.name}"
+        base = " ".join(p for p in (self.producer, self.name) if p) or "Unnamed wine"
+        return f"{base} ({self.vintage})" if self.vintage else base
 
     def __repr__(self) -> str:
         return f"<Wine {self.producer} {self.name}>"

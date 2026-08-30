@@ -10,7 +10,7 @@ from backend.models.location import Location
 from backend.models.wine import Wine, TastingNote
 from backend.models.user import User
 from backend.services.auth import get_current_user
-from backend.services.geocoder import geocode_address
+from backend.services.geocoder import geocode_address, reverse_geocode
 from backend.services.template import templates
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
@@ -144,3 +144,17 @@ async def geocode(
     if result:
         return {"lat": result[0], "lon": result[1], "display_name": result[2]}
     raise HTTPException(status_code=404, detail="Address not found")
+
+
+@router.post("/reverse")
+async def reverse(
+    request: Request,
+    lat: float = Form(...),
+    lon: float = Form(...),
+):
+    """Resolve the viewer's coordinates to a nearby venue (one-tap 'log here')."""
+    result = await reverse_geocode(lat, lon)
+    if result:
+        return result
+    # Still useful — let the client save a bare pin.
+    return {"name": "Dropped pin", "address": "", "lat": lat, "lon": lon, "venue_type": "other"}
