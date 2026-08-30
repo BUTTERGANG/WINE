@@ -196,46 +196,7 @@ async def get_wineries_nearby(
 
 
 @router.get("/{winery_id}")
-async def get_winery(
-    winery_id: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Winery detail page."""
-    result = await db.execute(select(Location).where(Location.id == winery_id))
-    winery = result.scalar_one_or_none()
-    if not winery:
-        return templates.TemplateResponse("errors/404.html", {"request": request}, status_code=404)
-
-    user = await get_current_user(request, db)
-
-    # Tastings at this winery
-    stmt = (
-        select(TastingNote)
-        .options(selectinload(TastingNote.wine), selectinload(TastingNote.user))
-        .where(TastingNote.location_id == winery.id)
-        .order_by(TastingNote.created_at.desc())
-        .limit(30)
-    )
-    result = await db.execute(stmt)
-    notes = list(result.scalars().all())
-
-    # Stats
-    tastings_count = len(notes)
-    unique_wines = len(set(n.wine_id for n in notes))
-    unique_visitors = len(set(n.user_id for n in notes))
-    avg_rating = round(sum(n.rating for n in notes) / len(notes), 1) if notes else None
-
-    return templates.TemplateResponse(
-        "location/winery_detail.html",
-        {
-            "request": request,
-            "winery": winery,
-            "user": user,
-            "notes": notes,
-            "tastings_count": tastings_count,
-            "unique_wines": unique_wines,
-            "unique_visitors": unique_visitors,
-            "avg_rating": avg_rating,
-        },
-    )
+async def get_winery(winery_id: str):
+    """The venue/winery detail page lives at /venue/{id}."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/venue/{winery_id}", status_code=307)

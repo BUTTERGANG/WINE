@@ -66,7 +66,7 @@
                         </div>
                         <div class="flex flex-wrap items-center gap-2 mt-1 text-sm text-neutral-400">
                             <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
-                            {% if note.location %}<span>📍 {{ note.location.name }}</span>{% endif %}
+                            {% if note.location %}<a href="/venue/{{ note.location.id }}" class="hover:text-wine-300">📍 {{ note.location.name }}</a>{% endif %}
                             {% if not note.is_public %}<span class="text-xs text-neutral-500">🔒 Private</span>{% endif %}
                         </div>
                         {% if note.notes %}

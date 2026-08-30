@@ -210,5 +210,89 @@ class TestSmoke:
         if data["results"]:
             winery_id = data["results"][0].get("id")
             if winery_id:
-                resp = httpx.get(f"{BASE}/api/wineries/{winery_id}")
+                resp = httpx.get(f"{BASE}/venue/{winery_id}")
                 assert resp.status_code == 200
+                assert "Mondavi" in resp.text
+                # legacy winery URL redirects to the venue page
+                resp = httpx.get(f"{BASE}/api/wineries/{winery_id}", follow_redirects=True)
+                assert resp.status_code == 200
+
+    def test_venue_page_shows_wines_poured(self):
+        # French Laundry (seed) has tastings
+        r = httpx.get(f"{BASE}/api/feed?limit=50").json()["items"]
+        loc = next((i for i in r if i.get("location_id")), None)
+        if loc:
+            resp = httpx.get(f"{BASE}/venue/{loc['location_id']}")
+            assert resp.status_code == 200
+            assert "Wines poured here" in resp.text
+
+    def test_feed_items_carry_location_id(self):
+        items = httpx.get(f"{BASE}/api/feed?limit=50").json()["items"]
+        assert any("location_id" in i for i in items)
+
+    def test_group_detail_page_restored(self):
+        # /group/{id} was dropped during the winery merge — regression guard
+        client, _ = self._authed()
+        gid = client.post("/api/groups", data={"name": f"Grp {client.uname}"}).json()["id"]
+        assert httpx.get(f"{BASE}/group/{gid}").status_code == 200
+
+    # ── core behaviour guards (restored after the winery merge) ────────
+
+    def _authed(self):
+        import random
+        s = random.randint(100000, 999999)
+        c = httpx.Client(base_url=BASE, follow_redirects=True)
+        r = c.post("/api/auth/register", data={"username": f"qa_{s}", "email": f"qa_{s}@t.com", "password": "testpass123"})
+        assert r.status_code == 200
+        c.uname = f"qa_{s}"
+        return c, c.uname
+
+    def test_add_wine_returns_json_and_quick_log(self):
+        c, u = self._authed()
+        r = c.post("/api/wines", data={"name": f"House White {u}", "rating": "4"})
+        assert r.status_code == 200 and r.json()["ok"] is True
+
+    def test_log_requires_rating_and_wine(self):
+        c, u = self._authed()
+        assert c.post("/api/wines", data={"name": f"x{u}"}).status_code == 400
+        assert c.post("/api/wines", data={"rating": "3"}).status_code == 400
+        assert c.post("/api/wines", data={"name": f"y{u}", "rating": "3", "vintage": "nope"}).status_code == 400
+
+    def test_unchecked_is_public_stays_private(self):
+        c, u = self._authed()
+        wid = c.post("/api/wines", data={"name": f"Private {u}", "rating": "5", "notes": "secret"}).json()["wine_id"]
+        feed = httpx.get(f"{BASE}/api/feed?limit=50").json()["items"]
+        assert all(i["wine_id"] != wid for i in feed)
+
+    def test_follow_unknown_user_404_not_500(self):
+        c, _ = self._authed()
+        assert c.post("/api/follow/nope-not-real").status_code == 404
+
+    def test_follow_by_username_roundtrips(self):
+        c, _ = self._authed()
+        assert c.post("/api/follow/sommelier_sam").json()["following"] is True
+        assert c.post("/api/follow/sommelier_sam").json()["following"] is False
+
+    def test_create_group_returns_list(self):
+        c, u = self._authed()
+        body = c.post("/api/groups", data={"name": f"QA {u}"}).json()
+        assert any(g["name"] == f"QA {u}" for g in body.get("groups", []))
+
+    def test_session_is_stateless_cookie(self):
+        c, _ = self._authed()
+        tok = c.cookies.get("session_token")
+        c2 = httpx.Client(base_url=BASE, cookies={"session_token": tok})
+        assert c2.get("/api/recommendations").status_code == 200
+
+    def test_csv_export_escapes_formulas(self):
+        c, u = self._authed()
+        c.post("/api/wines", data={"name": f"Inj {u}", "rating": "5", "notes": "=1+1", "is_public": "1"})
+        text = c.get("/api/wines/export").text
+        assert "\n'=1+1" in text or ",'=1+1" in text
+
+    def test_recent_wines_and_reverse_geocode(self):
+        c, u = self._authed()
+        c.post("/api/wines", data={"name": f"Recent {u}", "rating": "4"})
+        assert any(w["name"] == f"Recent {u}" for w in c.get("/api/wines/mine/recent").json()["wines"])
+        rg = httpx.post(f"{BASE}/api/locations/reverse", data={"lat": 48.8566, "lon": 2.3522})
+        assert rg.status_code == 200 and "venue_type" in rg.json()

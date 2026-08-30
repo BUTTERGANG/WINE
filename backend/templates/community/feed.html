@@ -53,7 +53,11 @@ function renderFeed(items, mode) {
     feedContainer.innerHTML = items.map(function (item) {
         const photo = item.photo_url
             ? '<img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover border border-neutral-800 flex-shrink-0">' : '';
-        const loc = item.location_name ? '<span class="text-neutral-400">📍 ' + esc(item.location_name) + '</span>' : '';
+        const loc = item.location_name
+            ? (item.location_id
+                ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="text-neutral-400 hover:text-wine-300">📍 ' + esc(item.location_name) + '</a>'
+                : '<span class="text-neutral-400">📍 ' + esc(item.location_name) + '</span>')
+            : '';
         const notes = item.notes ? '<p class="text-sm text-neutral-400 mt-2 italic">“' + esc(item.notes) + '”</p>' : '';
         return '' +
           '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">' +

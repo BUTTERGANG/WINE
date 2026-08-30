@@ -50,7 +50,7 @@
                             <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
                             <span>by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
                             {% if note.location %}
-                            <span>📍 {{ note.location.name }}</span>
+                            <a href="/venue/{{ note.location.id }}" class="hover:text-wine-300">📍 {{ note.location.name }}</a>
                             {% endif %}
                         </div>
                         {% if note.notes %}

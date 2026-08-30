@@ -35,6 +35,7 @@ def _feed_item(note: TastingNote) -> dict:
         "user_id": note.user.id,
         "user_avatar": note.user.avatar_url,
         "location_name": note.location.name if note.location else None,
+        "location_id": note.location.id if note.location else None,
         "notes": note.notes[:280] if note.notes else "",
         "photo_url": note.photo_url or "",
         "created_at": note.created_at.isoformat(),

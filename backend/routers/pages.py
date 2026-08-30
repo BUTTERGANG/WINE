@@ -204,6 +204,96 @@ async def wineries_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("location/wineries.html", {"request": request, "user": user})
 
 
+@router.get("/group/{group_id}", response_class=HTMLResponse)
+async def group_detail_page(group_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Group detail page."""
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+    if not group:
+        return _not_found(request)
+
+    user = await get_current_user(request, db)
+    members = (await db.execute(
+        select(User).join(GroupMember, GroupMember.user_id == User.id)
+        .where(GroupMember.group_id == group_id)
+    )).scalars().all()
+
+    member_ids = [m.id for m in members]
+    notes = []
+    if member_ids:
+        notes = list((await db.execute(
+            select(TastingNote)
+            .options(selectinload(TastingNote.wine), selectinload(TastingNote.user), selectinload(TastingNote.location))
+            .where(TastingNote.user_id.in_(member_ids), TastingNote.is_public == True)
+            .order_by(TastingNote.created_at.desc()).limit(30)
+        )).scalars().all())
+
+    is_member = bool(user and any(m.id == user.id for m in members))
+    return templates.TemplateResponse(
+        "community/group_detail.html",
+        {"request": request, "group": group, "user": user,
+         "members": members, "notes": notes, "is_member": is_member},
+    )
+
+
+@router.get("/venue/{location_id}", response_class=HTMLResponse)
+async def venue_detail_page(location_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Venue detail — winery / restaurant / bar info + who's poured what here."""
+    venue = (await db.execute(select(Location).where(Location.id == location_id))).scalar_one_or_none()
+    if not venue:
+        return _not_found(request)
+
+    user = await get_current_user(request, db)
+
+    notes = list((await db.execute(
+        select(TastingNote)
+        .options(selectinload(TastingNote.wine), selectinload(TastingNote.user))
+        .where(TastingNote.location_id == venue.id, TastingNote.is_public == True)
+        .order_by(TastingNote.created_at.desc())
+        .limit(40)
+    )).scalars().all())
+
+    # "Wines poured here" — distinct wines with a local rating summary
+    wines: dict[str, dict] = {}
+    for n in notes:
+        w = n.wine
+        if not w:
+            continue
+        row = wines.setdefault(w.id, {"wine": w, "count": 0, "ratings": []})
+        row["count"] += 1
+        if n.rating:
+            row["ratings"].append(n.rating)
+    poured = sorted(
+        (
+            {
+                "id": r["wine"].id,
+                "display_name": r["wine"].display_name,
+                "wine_type": r["wine"].wine_type,
+                "count": r["count"],
+                "avg": round(sum(r["ratings"]) / len(r["ratings"]), 1) if r["ratings"] else None,
+            }
+            for r in wines.values()
+        ),
+        key=lambda x: (-x["count"], x["display_name"]),
+    )
+
+    all_ratings = [n.rating for n in notes if n.rating]
+    return templates.TemplateResponse(
+        "location/venue_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "venue": venue,
+            "notes": notes,
+            "poured": poured,
+            "tastings_count": len(notes),
+            "unique_wines": len(wines),
+            "unique_visitors": len({n.user_id for n in notes}),
+            "avg_rating": round(sum(all_ratings) / len(all_ratings), 1) if all_ratings else None,
+        },
+    )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request, db: AsyncSession = Depends(get_db)):
     """Personal dashboard with taste profile and recommendations."""

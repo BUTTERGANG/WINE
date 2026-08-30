@@ -359,6 +359,8 @@ async def get_wine_reviews(wine_id: str, request: Request, db: AsyncSession = De
             "tannins": n.tannins or "",
             "food_pairing": n.food_pairing or "",
             "photo_url": n.photo_url or "",
+            "location_id": n.location.id if n.location else None,
+            "location_name": n.location.name if n.location else None,
             "created_at": n.created_at.isoformat(),
         }
         for n in notes

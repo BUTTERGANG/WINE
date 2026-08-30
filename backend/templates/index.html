@@ -60,7 +60,10 @@
                 ? '<img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-16 h-16 rounded-lg object-cover border border-neutral-800 flex-shrink-0">'
                 : '';
             const loc = item.location_name
-                ? '<span>📍 ' + esc(item.location_name) + '</span>' : '';
+                ? (item.location_id
+                    ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="hover:text-wine-300">📍 ' + esc(item.location_name) + '</a>'
+                    : '<span>📍 ' + esc(item.location_name) + '</span>')
+                : '';
             const notes = item.notes
                 ? '<p class="text-sm text-neutral-400 mt-2">“' + esc(item.notes) + '”</p>' : '';
             return '' +
