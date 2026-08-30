@@ -15,6 +15,8 @@ class Location(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: uuid.uuid4().hex[:12])
     name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     address: Mapped[str] = mapped_column(String(500), default="")
+    state_or_region: Mapped[str] = mapped_column(String(100), default="")
+    country: Mapped[str] = mapped_column(String(100), default="")
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lon: Mapped[float] = mapped_column(Float, nullable=False)
     venue_type: Mapped[str] = mapped_column(String(50), default="other")  # winery, restaurant, bar, home, shop, other

@@ -105,6 +105,8 @@ async def seed_from_winerymap(region_filter: str = "United States", limit: int =
                 location = Location(
                     name=name,
                     address=state_or_region,
+                    state_or_region=state_or_region,
+                    country=country,
                     lat=lat,
                     lon=lon,
                     venue_type="winery",
