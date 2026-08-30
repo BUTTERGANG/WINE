@@ -6,12 +6,19 @@
     <title>{% block title %}WINE{% endblock %} · WINE</title>
     <meta name="description" content="WINE — social wine tracking. Scan a bottle or a glass, pin every pour to a map, rate it, and see what your people are drinking.">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%B7%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        display: ['Fraunces', 'Georgia', 'Times New Roman', 'serif'],
+                    },
                     colors: {
                         wine: {
                             50: '#fdf6ef', 100: '#fbe8d5', 200: '#f6cfaa', 300: '#f0af78',
@@ -27,22 +34,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="stylesheet" href="/static/css/app.css">
-    <style>
-        .star { cursor: pointer; font-size: 1.5rem; color: #555; transition: color 0.15s; line-height: 1; }
-        .star.active, .star:hover, .star:focus-visible { color: #e98844; outline: none; }
-        .wine-pin { background: none; border: none; }
-        .wine-pin div {
-            background: #e98844; color: white; border-radius: 50% 50% 50% 0;
-            width: 24px; height: 24px; transform: rotate(-45deg);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .wine-pin div::after { content: '🍷'; font-size: 14px; }
-        .wine-pin.my-wine div { background: #b04116; }
-        .leaflet-popup-content-wrapper { background: #1e1e3a; color: #e8e0d8; border-radius: 8px; }
-        .leaflet-popup-tip { background: #1e1e3a; }
-        .leaflet-popup-content { margin: 10px 15px; }
-    </style>
     <script>
         // Shared helpers — ALWAYS run user-derived strings through esc() before
         // putting them into innerHTML.
@@ -62,12 +53,12 @@
         };
     </script>
 </head>
-<body class="bg-neutral-950 text-neutral-200 min-h-screen flex flex-col">
+<body class="text-neutral-200 min-h-screen flex flex-col">
     <!-- Nav -->
-    <nav class="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-sm sticky top-0 z-[1100]">
+    <nav class="border-b border-neutral-800 bg-neutral-950/70 backdrop-blur-md sticky top-0 z-[1100]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-14">
-                <a href="/" class="flex items-center gap-2 text-xl font-bold text-wine-400 hover:text-wine-300">
+                <a href="/" class="flex items-center gap-2 text-xl font-display text-wine-400 hover:text-wine-300" style="view-transition-name:brand">
                     <span>🍷</span> WINE
                 </a>
 
@@ -140,6 +131,9 @@
 
     <script>
         (function () {
+            var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            // Mobile nav
             var btn = document.getElementById('nav-toggle');
             var menu = document.getElementById('mobile-menu');
             if (btn && menu) {
@@ -147,6 +141,57 @@
                     var willOpen = menu.hidden;
                     menu.hidden = !willOpen;
                     btn.setAttribute('aria-expanded', String(willOpen));
+                });
+            }
+
+            // Nav gains weight once you scroll
+            var nav = document.querySelector('nav.sticky');
+            if (nav) {
+                var onScroll = function () { nav.classList.toggle('is-scrolled', window.scrollY > 8); };
+                onScroll();
+                window.addEventListener('scroll', onScroll, { passive: true });
+            }
+
+            // Stagger index for server-rendered [data-animate] groups
+            document.querySelectorAll('[data-animate]').forEach(function (group) {
+                Array.prototype.forEach.call(group.children, function (child, i) {
+                    child.style.setProperty('--i', Math.min(i, 12));
+                });
+            });
+
+            // Stagger index for JS-rendered lists (feed, groups, reviews, …)
+            window.revealChildren = function (container) {
+                if (!container) return;
+                Array.prototype.forEach.call(container.children, function (child, i) {
+                    child.classList.add('reveal-item');
+                    child.style.setProperty('--i', Math.min(i, 14));
+                });
+            };
+            var mo = new MutationObserver(function (muts) {
+                muts.forEach(function (m) {
+                    if (m.type === 'childList' && m.addedNodes.length && m.target.hasAttribute('data-reveal-list')) {
+                        window.revealChildren(m.target);
+                    }
+                });
+            });
+            document.querySelectorAll('[data-reveal-list]').forEach(function (el) {
+                mo.observe(el, { childList: true });
+            });
+
+            // Count-up for stat numbers
+            if (!reduce) {
+                document.querySelectorAll('[data-count]').forEach(function (el) {
+                    var target = parseFloat(el.getAttribute('data-count')) || 0;
+                    if (target <= 0) { el.textContent = target; return; }
+                    var start = null, dur = 900;
+                    var step = function (ts) {
+                        if (!start) start = ts;
+                        var p = Math.min((ts - start) / dur, 1);
+                        var eased = 1 - Math.pow(1 - p, 3);
+                        el.textContent = Math.round(eased * target).toLocaleString();
+                        if (p < 1) requestAnimationFrame(step);
+                    };
+                    requestAnimationFrame(step);
                 });
             }
         })();

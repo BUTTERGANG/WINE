@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ group.name }}{% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8">
+<div class="max-w-3xl mx-auto px-4 py-8" data-animate>
     <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
         <div class="flex items-start justify-between">
             <div>
-                <h1 class="text-2xl font-bold">{{ group.name }}</h1>
+                <h1 class="text-2xl font-display">{{ group.name }}</h1>
                 {% if group.description %}
                 <p class="text-neutral-400 mt-1">{{ group.description }}</p>
                 {% endif %}
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Group Tastings -->
-    <h2 class="text-lg font-semibold mt-8 mb-4">🍷 Group Tastings</h2>
+    <h2 class="text-lg font-display mt-8 mb-4">🍷 Group Tastings</h2>
     <div class="space-y-3">
         {% if notes %}
             {% for note in notes %}

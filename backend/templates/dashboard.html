@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4 py-8" data-animate>
     {% if not user %}
     <div class="text-center py-16">
         <div class="text-6xl mb-4">🍷</div>
-        <h1 class="text-2xl font-bold mb-2">Your Palate Awaits</h1>
+        <h1 class="text-2xl font-display mb-2">Your Palate Awaits</h1>
         <p class="text-neutral-500 mb-6">Log in to see your taste profile and personalized recommendations.</p>
         <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-6 py-2.5 rounded-lg text-white font-medium transition">Log In</a>
     </div>
@@ -13,7 +13,7 @@
 
     <div class="flex items-start justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-2xl font-bold mb-1">🍷 Your Dashboard</h1>
+            <h1 class="text-2xl font-display mb-1">🍷 Your Dashboard</h1>
             <p class="text-neutral-400 text-sm">Your taste profile and personalized recommendations</p>
         </div>
         {% if profile and profile.has_data %}
@@ -27,7 +27,7 @@
     <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 mb-6" id="taste-profile">
         <div class="flex items-center gap-2 mb-4">
             <span class="text-2xl">🧠</span>
-            <h2 class="text-lg font-semibold">Your Taste Profile</h2>
+            <h2 class="text-lg font-display">Your Taste Profile</h2>
         </div>
 
         {% if profile and profile.has_data %}
@@ -35,11 +35,11 @@
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
             <div class="bg-neutral-800 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-wine-400">{{ profile.total_tastings }}</div>
+                <div class="text-2xl font-display text-wine-400">{{ profile.total_tastings }}</div>
                 <div class="text-neutral-500 text-xs">Tastings</div>
             </div>
             <div class="bg-neutral-800 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-wine-400">{{ profile.avg_rating or '-' }}</div>
+                <div class="text-2xl font-display text-wine-400">{{ profile.avg_rating or '-' }}</div>
                 <div class="text-neutral-500 text-xs">Avg Rating</div>
             </div>
             <div class="bg-neutral-800 rounded-lg p-3 text-center">
@@ -100,7 +100,7 @@
     <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
         <div class="flex items-center gap-2 mb-4">
             <span class="text-2xl">🎯</span>
-            <h2 class="text-lg font-semibold">Recommended For You</h2>
+            <h2 class="text-lg font-display">Recommended For You</h2>
         </div>
 
         {% if recommendations %}

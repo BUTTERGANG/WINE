@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Feed{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-8">
+<div class="max-w-2xl mx-auto px-4 py-8" data-animate>
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold">🍷 Community Feed</h1>
+            <h1 class="text-2xl font-display">🍷 Community Feed</h1>
             <p class="text-sm text-neutral-400">What everyone's drinking</p>
         </div>
         {% if user %}
@@ -17,7 +17,7 @@
         {% endif %}
     </div>
 
-    <div id="feed-page">
+    <div id="feed-page" data-reveal-list>
         <div class="text-neutral-500 text-center py-8">Loading feed…</div>
     </div>
 </div>
@@ -68,7 +68,7 @@ function renderFeed(items, mode) {
                 '</div>' +
                 '<div class="flex items-start gap-3 mt-1">' +
                   '<div class="flex-1 min-w-0">' +
-                    '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="block text-lg font-semibold text-wine-300 hover:text-wine-200">' + esc(item.wine_name) + '</a>' +
+                    '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="block text-lg font-display text-wine-300 hover:text-wine-200">' + esc(item.wine_name) + '</a>' +
                     '<div class="flex flex-wrap items-center gap-3 mt-1 text-sm">' +
                       '<span class="text-yellow-500">' + stars(item.rating) + '</span>' + loc +
                     '</div>' + notes +

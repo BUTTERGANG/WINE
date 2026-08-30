@@ -1,71 +1,207 @@
-/* WINE custom styles */
+/* ============================================================
+   WINE — design system layer
+   Tailwind (CDN) handles utilities; this file adds depth,
+   typography, and motion so the UI reads less "template".
+   ============================================================ */
+
+:root {
+    --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ring: #e98844;
+    --surface-1: #17150f;   /* cards */
+    --surface-2: #211d15;   /* nested tiles */
+    --hairline: rgba(255, 255, 255, 0.07);
+}
+
+/* ---------- Base ---------- */
+
+html {
+    background: #0b0a08;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #e9e4da;
+    letter-spacing: -0.006em;
+    /* warm halo behind the nav + faint vignette = "lit from above" */
+    background:
+        radial-gradient(120% 55% at 50% -8%, rgba(227, 106, 31, 0.10), transparent 62%),
+        radial-gradient(90% 60% at 50% 120%, rgba(120, 46, 25, 0.06), transparent 60%),
+        #0b0a08;
+    background-attachment: fixed;
 }
 
-/* Star rating */
-.star {
-    cursor: pointer;
-    font-size: 1.5rem;
-    color: #555;
-    transition: color 0.15s;
-}
-.star.active, .star:hover {
-    color: #e98844;
+.font-display {
+    font-family: 'Fraunces', 'Fraunces-fallback', Georgia, 'Times New Roman', serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+    font-weight: 500;
 }
 
-/* Wine map pins */
-.wine-pin {
-    background: none !important;
-    border: none !important;
+::selection { background: rgba(227, 106, 31, 0.28); }
+
+/* ---------- Elevation: style the utility classes the templates already use ---------- */
+
+.bg-neutral-900 {
+    background-color: var(--surface-1) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 1px 2px rgba(0, 0, 0, 0.35),
+        0 8px 24px -12px rgba(0, 0, 0, 0.5);
 }
-.wine-pin div {
-    background: #e98844;
-    color: white;
-    border-radius: 50% 50% 50% 0;
-    width: 24px;
-    height: 24px;
-    transform: rotate(-45deg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+.bg-neutral-800 { background-color: var(--surface-2) !important; }
+.border-neutral-800 { border-color: var(--hairline) !important; }
+.border-neutral-700 { border-color: rgba(255, 255, 255, 0.11) !important; }
+
+/* primary action buttons get a subtle sheen + lift */
+.bg-wine-600 {
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.10), rgba(0, 0, 0, 0.06));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -8px rgba(227, 106, 31, 0.45);
 }
-.wine-pin.my-wine div {
-    background: #b04116;
+.bg-wine-600:hover { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 26px -8px rgba(227, 106, 31, 0.6); }
+
+nav.sticky { transition: background-color .3s, box-shadow .3s, backdrop-filter .3s; }
+nav.sticky.is-scrolled {
+    box-shadow: 0 1px 0 var(--hairline), 0 10px 30px -20px rgba(0, 0, 0, 0.8);
+    background-color: rgba(11, 10, 8, 0.9) !important;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
+/* ---------- Interaction ---------- */
+
+a, button, input, select, textarea, .star, [role="button"], [data-lift] {
+    transition:
+        color .18s var(--ease-out-soft),
+        background-color .18s var(--ease-out-soft),
+        border-color .18s var(--ease-out-soft),
+        box-shadow .2s var(--ease-out-soft),
+        transform .2s var(--ease-out-soft),
+        opacity .2s var(--ease-out-soft);
 }
-::-webkit-scrollbar-track {
-    background: #1a1a2e;
+
+button:active, [role="button"]:active, a[class*="bg-wine"]:active {
+    transform: translateY(0.5px) scale(0.985);
 }
-::-webkit-scrollbar-thumb {
-    background: #333;
+
+/* card lift — opt-in via data-lift, and auto for link-cards */
+[data-lift]:hover,
+a.block.bg-neutral-800:hover,
+a.bg-neutral-800.flex:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 12px 32px -12px rgba(0, 0, 0, 0.6);
+}
+
+:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
     border-radius: 4px;
 }
-
-/* Input/select focus */
 input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: #e98844;
-    box-shadow: 0 0 0 1px #e98844;
+    border-color: var(--ring) !important;
+    box-shadow: 0 0 0 3px rgba(227, 106, 31, 0.16);
 }
 
-/* Leaflet overrides for dark theme */
-.leaflet-container {
-    background: #1a1a2e;
+/* ---------- Star rating ---------- */
+
+.star {
+    cursor: pointer;
+    color: #4a4640;
+    font-size: 1.5rem;
+    line-height: 1;
+    transform-origin: center;
+    -webkit-user-select: none;
+    user-select: none;
 }
+.star.active { color: var(--ring); }
+.star:hover { color: #f0a563; }
+.star.active { animation: star-pop .32s var(--ease-spring); }
+
+@keyframes star-pop {
+    0% { transform: scale(0.8); }
+    60% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+}
+
+/* ---------- Entrance motion ---------- */
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* server-rendered sections: children rise in, staggered */
+[data-animate] > * {
+    animation: rise .55s var(--ease-out-soft) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* JS-rendered list items get --i set by app.js */
+.reveal-item {
+    animation: rise .5s var(--ease-out-soft) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* below-the-fold reveal via scroll-driven animation where supported */
+@supports (animation-timeline: view()) {
+    [data-reveal] {
+        animation: rise linear both;
+        animation-timeline: view();
+        animation-range: entry 0% cover 18%;
+    }
+}
+
+/* cross-page transitions */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation-duration: .28s; }
+::view-transition-new(root) { animation-duration: .28s; }
+
+/* ---------- Leaflet (dark) ---------- */
+
+.leaflet-container { background: #14120d; font: inherit; }
 .leaflet-popup-content-wrapper {
-    background: #1e1e3a !important;
-    color: #e8e0d8 !important;
-    border-radius: 8px !important;
+    background: #1c1810 !important;
+    color: #ece5d9 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.7) !important;
 }
-.leaflet-popup-tip {
-    background: #1e1e3a !important;
+.leaflet-popup-tip { background: #1c1810 !important; }
+.leaflet-popup-content { margin: 12px 16px !important; line-height: 1.5; }
+.leaflet-bar a { background: #1c1810 !important; color: #ece5d9 !important; border-color: var(--hairline) !important; }
+
+.wine-pin { background: none !important; border: none !important; }
+.wine-pin div {
+    background: var(--ring); color: #fff; border-radius: 50% 50% 50% 0;
+    width: 24px; height: 24px; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+    animation: pin-drop .45s var(--ease-spring) both;
 }
-.leaflet-popup-content {
-    margin: 10px 15px !important;
+.wine-pin div::after { content: '🍷'; font-size: 14px; }
+.wine-pin.my-wine div { background: #b04116; }
+
+@keyframes pin-drop {
+    from { opacity: 0; transform: rotate(-45deg) translateY(-14px) scale(0.6); }
+    to   { opacity: 1; transform: rotate(-45deg) translateY(0) scale(1); }
+}
+
+/* ---------- Scrollbar ---------- */
+
+* { scrollbar-width: thin; scrollbar-color: #3a352d transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #322d26; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #4a443a; background-clip: content-box; }
+
+/* ---------- Respect reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.001ms !important;
+    }
+    @view-transition { navigation: none; }
+    [data-lift]:hover { transform: none; }
 }

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Groups{% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8">
+<div class="max-w-3xl mx-auto px-4 py-8" data-animate>
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold">🍷 Wine Groups</h1>
+            <h1 class="text-2xl font-display">🍷 Wine Groups</h1>
             <p class="text-sm text-neutral-400">Taste together, share together</p>
         </div>
         {% if user %}
@@ -34,7 +34,7 @@
     </div>
     {% endif %}
 
-    <div id="group-list">
+    <div id="group-list" data-reveal-list>
         <div class="text-neutral-500 text-center py-8">Loading groups…</div>
     </div>
 </div>
@@ -55,7 +55,7 @@ function renderGroups(groups) {
         const desc = g.description ? '<p class="text-sm text-neutral-400 mt-1">' + esc(g.description) + '</p>' : '';
         return '' +
           '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">' +
-            '<a href="/group/' + encodeURIComponent(g.id) + '" class="text-lg font-semibold text-wine-300 hover:text-wine-200">' + esc(g.name) + '</a>' +
+            '<a href="/group/' + encodeURIComponent(g.id) + '" class="text-lg font-display text-wine-300 hover:text-wine-200">' + esc(g.name) + '</a>' +
             desc +
             '<div class="flex items-center gap-3 mt-2 text-xs text-neutral-500">' +
               '<span>👥 ' + (parseInt(g.member_count) || 0) + ' members</span>' +
