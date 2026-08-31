@@ -5,11 +5,12 @@ from typing import Optional
 
 import httpx
 
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.models.location import Location
+from backend.models.wine import TastingNote
 
 
 GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1"
@@ -228,8 +229,28 @@ async def search_vineyards_nominatim(query: str, limit: int = 10) -> list[dict]:
     return []
 
 
-async def search_local_wineries(db: AsyncSession, query: str = "", limit: int = 30) -> list[Location]:
-    """Search wineries already in the local DB."""
+async def search_local_wineries(
+    db: AsyncSession,
+    query: str = "",
+    limit: int = 30,
+    *,
+    region: str = "",
+    has_tastings: bool = False,
+    sort: str = "name",
+) -> list[Location]:
+    """Search wineries already in the local DB.
+
+    Filters: ``region`` (exact match on state_or_region), ``has_tastings``
+    (only wineries with community tasting notes). ``sort`` is "name" or
+    "tastings".
+    """
+    tn_count = (
+        select(func.count(TastingNote.id))
+        .where(TastingNote.location_id == Location.id)
+        .correlate(Location)
+        .scalar_subquery()
+    )
+
     stmt = select(Location).where(Location.venue_type == "winery")
 
     if query:
@@ -243,9 +264,31 @@ async def search_local_wineries(db: AsyncSession, query: str = "", limit: int = 
             )
         )
 
-    stmt = stmt.order_by(Location.name).limit(limit)
+    if region:
+        stmt = stmt.where(Location.state_or_region == region)
+
+    if has_tastings:
+        stmt = stmt.where(tn_count > 0)
+
+    if sort == "tastings":
+        stmt = stmt.order_by(tn_count.desc(), Location.name)
+    else:
+        stmt = stmt.order_by(Location.name)
+
+    stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def list_winery_regions(db: AsyncSession) -> list[dict]:
+    """Distinct wine regions with a winery count, for filter dropdowns."""
+    rows = await db.execute(
+        select(Location.state_or_region, func.count())
+        .where(Location.venue_type == "winery", Location.state_or_region != "")
+        .group_by(Location.state_or_region)
+        .order_by(Location.state_or_region)
+    )
+    return [{"region": r, "count": n} for r, n in rows.all()]
 
 
 async def import_wineries_to_db(

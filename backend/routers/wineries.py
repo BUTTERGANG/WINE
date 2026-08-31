@@ -16,6 +16,7 @@ from backend.services.wineries import (
     search_wineries_osm,
     search_vineyards_nominatim,
     search_local_wineries,
+    list_winery_regions,
     import_wineries_to_db,
 )
 from backend.config import settings
@@ -25,6 +26,12 @@ from backend.services.geo_lookup import resolve_state, resolve_zip
 router = APIRouter(prefix="/api/wineries", tags=["wineries"])
 
 
+@router.get("/regions")
+async def winery_regions(db: AsyncSession = Depends(get_db)):
+    """Wine regions with winery counts, for the search filter dropdown."""
+    return {"regions": await list_winery_regions(db)}
+
+
 @router.get("/search")
 async def search_wineries(
     request: Request,
@@ -32,6 +39,9 @@ async def search_wineries(
     lat: float = Query(None),
     lon: float = Query(None),
     radius: int = Query(100),
+    region: str = Query(""),
+    has_tastings: bool = Query(False),
+    sort: str = Query("name"),
     db: AsyncSession = Depends(get_db),
 ):
     """Search wineries — local DB first, then Google Places or OSM."""
@@ -39,26 +49,46 @@ async def search_wineries(
     # Ensure radius is within bounds
     radius = min(max(radius, 10), 500)
 
+    has_filters = bool(region or has_tastings)
+    limit = 60 if has_filters else 20
+
     # Local first
-    local = await search_local_wineries(db, q, 20)
+    local = await search_local_wineries(
+        db, q, limit, region=region, has_tastings=has_tastings, sort=sort
+    )
+
+    # Tasting counts in one grouped query (avoids N+1).
+    ids = [loc.id for loc in local]
+    counts: dict[str, int] = {}
+    if ids:
+        rows = await db.execute(
+            select(TastingNote.location_id, func.count())
+            .where(TastingNote.location_id.in_(ids))
+            .group_by(TastingNote.location_id)
+        )
+        counts = {loc_id: n for loc_id, n in rows.all()}
+
     results = [
         {
             "id": loc.id,
             "name": loc.name,
             "address": loc.address,
+            "region": loc.state_or_region,
             "lat": loc.lat,
             "lon": loc.lon,
             "description": loc.description,
             "website": loc.website,
             "phone": loc.phone,
+            "tasting_count": counts.get(loc.id, 0),
             "google_rating": None,
             "local": True,
         }
         for loc in local
     ]
 
-    # If under limit, try Google Places API (with key) then OSM
-    if len(results) < 10:
+    # External fallback only for plain text queries (external APIs can't
+    # honour our region / tastings filters).
+    if not has_filters and q and len(results) < 10:
         has_key = bool(settings.google_maps_api_key)
 
         if has_key:
