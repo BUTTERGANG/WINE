@@ -35,6 +35,36 @@ from sqlalchemy import select, func, or_
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "winery_enrichment.csv"
+CHECKPOINT = ROOT / "data" / "enrichment_checkpoint.json"
+
+CHECKPOINT_PATH = ROOT / "data" / "enrichment_checkpoint.json"
+
+
+def load_checkpoint() -> dict:
+    """Load resume state from checkpoint file."""
+    if CHECKPOINT_PATH.exists():
+        try:
+            with open(CHECKPOINT_PATH) as f:
+                cp = json.load(f)
+            print(f"📌 Found checkpoint: {cp.get('enriched', 0)} enriched, "
+                  f"last ID = {cp.get('last_id', 'none')}")
+            return cp
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"last_id": "", "enriched": 0, "errors": 0, "total_seen": 0}
+
+
+def save_checkpoint(cp: dict):
+    """Save resume state."""
+    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHECKPOINT_PATH, "w") as f:
+        json.dump(cp, f, indent=2)
+
+
+def clear_checkpoint():
+    """Remove checkpoint file (batch complete)."""
+    if CHECKPOINT_PATH.exists():
+        CHECKPOINT_PATH.unlink()
 
 # Same patterns as business-recon/scripts/deep_recon.py
 PLATFORMS = [
@@ -202,12 +232,21 @@ async def check_website(url: str, client: httpx.AsyncClient) -> dict:
 
 
 async def crawl_and_enrich(limit: int = 100, state_filter: str = ""):
-    """Crawl winery websites and update their DB records."""
+    """Crawl winery websites and update their DB records.
+    
+    Resumable: saves a checkpoint to data/enrichment_checkpoint.json.
+    Restart the same command and it picks up where it left off.
+    """
     if not httpx:
         print("⚠️  httpx required")
         return
 
     await init_db()
+    
+    # Load checkpoint
+    cp = load_checkpoint()
+    resumed = bool(cp.get("last_id"))
+    
     async with async_session() as s:
         # Find wineries with websites that haven't been enriched
         query = select(Location).where(
@@ -223,14 +262,30 @@ async def crawl_and_enrich(limit: int = 100, state_filter: str = ""):
         if state_filter:
             query = query.where(Location.state_or_region == state_filter.upper())
 
-        query = query.order_by(func.random()).limit(limit)
+        # Resume from checkpoint if available
+        if resumed:
+            query = query.where(Location.id > cp["last_id"])
+        
+        # Order by ID for deterministic resume, NOT random
+        query = query.order_by(Location.id).limit(limit)
         result = await s.execute(query)
         wineries = list(result.scalars().all())
 
+        if not wineries:
+            print("✨ No wineries left to enrich!")
+            clear_checkpoint()
+            return
+
+        # Carry over checkpoint counters
+        enriched = cp.get("enriched", 0)
+        errors = cp.get("errors", 0)
+        total_seen = cp.get("total_seen", 0)
+        last_id = cp.get("last_id", "")
+
+        if resumed:
+            print(f"📌 Resuming from ID {last_id} (already enriched: {enriched})")
         print(f"📊 Crawling {len(wineries)} winery websites...")
 
-        enriched = 0
-        errors = 0
         start = time.time()
 
         async with httpx.AsyncClient(
@@ -248,8 +303,6 @@ async def crawl_and_enrich(limit: int = 100, state_filter: str = ""):
 
                         # Build a rich description
                         desc_parts = []
-                        if data["title"] and data["title"] != w.name:
-                            pass  # title is usually the winery name, skip
                         if data["description"]:
                             desc_parts.append(data["description"][:200])
                         if data["platform"]:
@@ -269,29 +322,53 @@ async def crawl_and_enrich(limit: int = 100, state_filter: str = ""):
                             changed = True
 
                         enriched += 1
-                        if changed:
-                            pass  # await s.flush() done periodically
 
-                    if (i + 1) % 50 == 0:
+                    total_seen += 1
+                    last_id = w.id
+
+                    # Save checkpoint every 20 items
+                    if total_seen % 20 == 0:
+                        await s.flush()
+                        save_checkpoint({
+                            "last_id": last_id, "enriched": enriched,
+                            "errors": errors, "total_seen": total_seen,
+                        })
+
+                    if (total_seen) % 50 == 0:
                         await s.flush()
                         elapsed = time.time() - start
-                        rate = (i + 1) / elapsed
-                        eta = (len(wineries) - i - 1) / rate / 60
-                        print(f"   {i+1}/{len(wineries)} ({rate:.1f}/s, ETA {eta:.0f}m) — "
+                        rate = total_seen / elapsed
+                        remaining = limit - total_seen
+                        eta = remaining / rate / 60 if rate > 0 else 0
+                        print(f"   {total_seen}/{limit} ({rate:.1f}/s, ETA {eta:.0f}m) — "
                               f"{enriched} enriched, {errors} errors")
 
-                except Exception as e:
+                except Exception:
                     errors += 1
-                    if (i + 1) % 50 == 0:
-                        print(f"   {i+1}/{len(wineries)} — {errors} errors so far")
+                    if total_seen % 50 == 0:
+                        print(f"   {total_seen}/{limit} — {errors} errors so far")
 
                 # Rate limit: 5 req/s
-                if (i + 1) % 5 == 0:
+                if total_seen % 5 == 0:
                     await asyncio.sleep(0.2)
 
         await s.commit()
         elapsed = time.time() - start
-        print(f"\n✅ Done: {enriched} enriched, {errors} errors, {elapsed:.0f}s")
+        
+        # Save final checkpoint (in case we want another batch)
+        save_checkpoint({
+            "last_id": last_id, "enriched": enriched,
+            "errors": errors, "total_seen": total_seen,
+        })
+        
+        print(f"\n✅ Batch done: {enriched} enriched, {errors} errors, {elapsed:.0f}s")
+        print(f"   Checkpoint saved at ID: {last_id}")
+        
+        # Auto-export to JSON for production migration
+        print("   Auto-exporting to data/wineries_export.json...")
+        from scripts.export_wineries import export
+        await export()
+        print("   ✅ Export complete")
 
 
 async def count_unenriched(state_filter: str = ""):
@@ -334,7 +411,13 @@ async def main():
     parser.add_argument("--google-enrich", type=int, default=0, help="Enrich N wineries via Google Places")
     parser.add_argument("--google-search", type=str, default="", help="Search Google Places for wineries")
     parser.add_argument("--radius", type=int, default=50000, help="Search radius in meters for Google Places")
+    parser.add_argument("--clear-checkpoint", action="store_true", help="Clear resume checkpoint and start fresh")
     args = parser.parse_args()
+
+    if args.clear_checkpoint:
+        clear_checkpoint()
+        print("🧹 Checkpoint cleared. Next run will start fresh.")
+        return
 
     if args.count:
         await count_unenriched(args.state)
