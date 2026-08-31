@@ -44,6 +44,7 @@ app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uplo
 from backend.routers import auth, wines, locations, community, pages, upload, wineries
 
 app.include_router(auth.router)
+app.include_router(auth.aliases)
 app.include_router(wines.router)
 app.include_router(locations.router)
 app.include_router(community.router)

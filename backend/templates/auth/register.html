@@ -10,7 +10,7 @@
         <div class="bg-red-900/30 border border-red-700 text-red-300 rounded-lg px-4 py-2 mb-4 text-sm">{{ error }}</div>
         {% endif %}
 
-        <form action="/api/auth/register" method="post" class="space-y-4">
+        <form action="/register" method="post" class="space-y-4">
             <div>
                 <label class="block text-sm text-neutral-400 mb-1">Username</label>
                 <input type="text" name="username" required minlength="3" maxlength="50"
@@ -29,7 +29,7 @@
             <button type="submit" class="w-full bg-wine-600 hover:bg-wine-500 text-white font-medium py-2.5 rounded-lg transition">Create Account</button>
         </form>
         <p class="text-center text-sm text-neutral-500 mt-4">
-            Already have one? <a href="/api/auth/login" class="text-wine-400 hover:underline">Log in</a>
+            Already have one? <a href="/login" class="text-wine-400 hover:underline">Log in</a>
         </p>
     </div>
 </div>

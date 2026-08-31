@@ -14,7 +14,7 @@ from backend.database import get_db
 from backend.models.wine import Wine, TastingNote
 from backend.models.location import Location
 from backend.models.user import User
-from backend.services.auth import get_current_user
+from backend.services.auth import get_current_user, required_user
 from backend.services.wine_db import search_local_wines, search_external_wine_api, get_or_create_wine
 from backend.services.label_scanner import scan_label
 from backend.services.glass_scanner import analyze_glass
@@ -167,12 +167,9 @@ async def scan_glass_photo(
 async def create_wine(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Create a wine + tasting note from form data."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     form = await request.form()
 
     def _num(key, cast, lo=None, hi=None):
@@ -258,14 +255,10 @@ async def create_wine(
 
 @router.get("/export")
 async def export_journal(
-    request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Export the current user's tasting journal as CSV."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(TastingNote)

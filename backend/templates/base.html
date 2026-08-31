@@ -77,12 +77,12 @@
                         <span class="w-6 h-6 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-bold">{{ (user.display_name or user.username or '?')[:1]|upper }}</span>
                         {{ user.display_name or user.username }}
                     </a>
-                    <form action="/api/auth/logout" method="post" class="inline">
+                    <form action="/logout" method="post" class="inline">
                         <button type="submit" class="text-neutral-400 hover:text-red-400 text-xs">Logout</button>
                     </form>
                     {% else %}
-                    <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-3 py-1.5 rounded text-white text-xs font-medium transition">Login</a>
-                    <a href="/api/auth/register" class="border border-neutral-700 hover:border-wine-500 px-3 py-1.5 rounded text-xs transition">Sign Up</a>
+                    <a href="/login" class="bg-wine-600 hover:bg-wine-500 px-3 py-1.5 rounded text-white text-xs font-medium transition">Login</a>
+                    <a href="/register" class="border border-neutral-700 hover:border-wine-500 px-3 py-1.5 rounded text-xs transition">Sign Up</a>
                     {% endif %}
                 </div>
 
@@ -101,6 +101,7 @@
             <div class="px-4 py-3 space-y-1 text-sm">
                 <a href="/" class="block py-2 hover:text-wine-400">Home</a>
                 <a href="/map" class="block py-2 hover:text-wine-400">Map</a>
+                <a href="/wineries" class="block py-2 hover:text-wine-400">Wineries</a>
                 <a href="/feed" class="block py-2 hover:text-wine-400">Feed</a>
                 <a href="/groups" class="block py-2 hover:text-wine-400">Groups</a>
                 <a href="/wine/add" class="block py-2 hover:text-wine-400">Add Wine</a>
@@ -109,10 +110,10 @@
                 <div class="pt-2 mt-2 border-t border-neutral-800">
                 {% if user %}
                     <a href="/profile/{{ user.id }}" class="block py-2 hover:text-wine-400">{{ user.display_name or user.username }}</a>
-                    <form action="/api/auth/logout" method="post"><button type="submit" class="py-2 text-red-400">Logout</button></form>
+                    <form action="/logout" method="post"><button type="submit" class="py-2 text-red-400">Logout</button></form>
                 {% else %}
-                    <a href="/api/auth/login" class="block py-2 text-wine-400">Login</a>
-                    <a href="/api/auth/register" class="block py-2 hover:text-wine-400">Sign Up</a>
+                    <a href="/login" class="block py-2 text-wine-400">Login</a>
+                    <a href="/register" class="block py-2 hover:text-wine-400">Sign Up</a>
                 {% endif %}
                 </div>
             </div>

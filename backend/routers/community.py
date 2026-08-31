@@ -10,7 +10,7 @@ from backend.models.wine import Wine, TastingNote
 from backend.models.location import Location
 from backend.models.user import User
 from backend.models.community import Follow, Group, GroupMember
-from backend.services.auth import get_current_user, require_user
+from backend.services.auth import get_current_user, required_user
 from backend.services.template import templates
 
 router = APIRouter(prefix="/api", tags=["community"])
@@ -102,14 +102,10 @@ async def get_personal_feed(
 @router.post("/follow/{target_id}")
 async def toggle_follow(
     target_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Follow or unfollow a user."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     target = await _resolve_user_id(target_id, db)
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
@@ -205,12 +201,9 @@ async def get_follow_lists(
 async def create_group(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Create a new wine group."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     form = await request.form()
     group = Group(
         name=form.get("name", "New Group"),
@@ -271,14 +264,10 @@ async def list_groups(
 @router.post("/groups/{group_id}/join")
 async def join_group(
     group_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Join a group."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     # Check group exists
     result = await db.execute(select(Group).where(Group.id == group_id))
     group = result.scalar_one_or_none()

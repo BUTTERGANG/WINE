@@ -7,7 +7,7 @@
 
     {% if not user %}
     <div class="bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg px-4 py-3 text-sm mb-4">
-        You must <a href="/api/auth/login" class="underline">log in</a> to save a tasting.
+        You must <a href="/login" class="underline">log in</a> to save a tasting.
     </div>
     {% endif %}
 
@@ -465,7 +465,7 @@
         fetch('/api/wines', { method: 'POST', body: new FormData(form) })
             .then(async function (r) {
                 const data = await r.json().catch(() => ({}));
-                if (r.status === 401) { window.location.href = '/api/auth/login'; return; }
+                if (r.status === 401) { window.location.href = '/login'; return; }
                 if (!r.ok) throw new Error(data.detail || 'Could not save the tasting.');
                 window.location.href = '/wine/' + encodeURIComponent(data.wine_id);
             })

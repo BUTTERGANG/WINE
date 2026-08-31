@@ -1,8 +1,14 @@
-"""Auth routes — register, login, logout."""
+"""Auth routes — register, login, logout.
 
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+Canonical paths live under ``/api/auth/*``; friendly aliases (``/login``,
+``/register``, ``/logout``) are registered on a second, prefix-less router so
+links read naturally without breaking existing clients.
+"""
+
+from fastapi import APIRouter, Depends, Request, Form
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -12,12 +18,14 @@ from backend.services.auth import (
     verify_password,
     create_session,
     delete_session,
-    get_current_user,
     get_session_cookie,
+    normalize_email,
+    validate_credentials,
 )
 from backend.services.template import templates
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+aliases = APIRouter(tags=["auth"])
 
 
 @router.get("/login")
@@ -38,9 +46,20 @@ async def register(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    # Check for existing user
-    result = await db.execute(select(User).where((User.email == email) | (User.username == username)))
-    if result.scalar_one_or_none():
+    username = (username or "").strip()
+    email = normalize_email(email)
+
+    error = validate_credentials(username, email, password)
+    if error:
+        return templates.TemplateResponse(
+            "auth/register.html", {"request": request, "error": error}, status_code=400
+        )
+
+    # Fast path: surface an obvious clash before hitting the unique constraint.
+    existing = await db.execute(
+        select(User).where((User.email == email) | (User.username == username))
+    )
+    if existing.scalar_one_or_none():
         return templates.TemplateResponse(
             "auth/register.html",
             {"request": request, "error": "Username or email already taken"},
@@ -54,12 +73,20 @@ async def register(
         display_name=username,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Lost a race against a concurrent signup with the same username/email.
+        await db.rollback()
+        return templates.TemplateResponse(
+            "auth/register.html",
+            {"request": request, "error": "Username or email already taken"},
+            status_code=400,
+        )
 
     token = await create_session(user.id)
     resp = RedirectResponse(url="/", status_code=303)
-    cookie = get_session_cookie(token)
-    resp.set_cookie(**cookie)
+    resp.set_cookie(**get_session_cookie(token))
     return resp
 
 
@@ -70,6 +97,7 @@ async def login(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    email = normalize_email(email)
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
@@ -82,8 +110,7 @@ async def login(
 
     token = await create_session(user.id)
     resp = RedirectResponse(url="/", status_code=303)
-    cookie = get_session_cookie(token)
-    resp.set_cookie(**cookie)
+    resp.set_cookie(**get_session_cookie(token))
     return resp
 
 
@@ -95,3 +122,12 @@ async def logout(request: Request):
     resp = RedirectResponse(url="/", status_code=303)
     resp.delete_cookie("session_token", path="/")
     return resp
+
+
+# ── Friendly aliases ─────────────────────────────────────────────────────
+
+aliases.add_api_route("/login", login_page, methods=["GET"])
+aliases.add_api_route("/register", register_page, methods=["GET"])
+aliases.add_api_route("/login", login, methods=["POST"])
+aliases.add_api_route("/register", register, methods=["POST"])
+aliases.add_api_route("/logout", logout, methods=["POST"])

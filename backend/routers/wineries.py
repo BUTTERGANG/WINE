@@ -1,6 +1,6 @@
 """Winery routes — discover, search, import wineries."""
 
-from fastapi import APIRouter, Depends, Request, Query, HTTPException
+from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,7 @@ from backend.database import get_db
 from backend.models.location import Location
 from backend.models.wine import Wine, TastingNote
 from backend.models.user import User
-from backend.services.auth import get_current_user
+from backend.services.auth import required_user
 from backend.services.wineries import (
     search_wineries_google,
     search_wineries_osm,
@@ -99,12 +99,9 @@ async def search_wineries(
 async def import_wineries(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(required_user),
 ):
     """Import wineries from OSM near a location or from a search."""
-    user = await get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     form = await request.form()
     query = str(form.get("query", ""))
     lat_str = form.get("lat")
