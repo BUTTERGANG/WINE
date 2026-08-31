@@ -160,7 +160,7 @@
     {%- macro mobilelink(href, label) -%}
         {%- set _on = _path == href or (href != '/' and _path.startswith(href)) -%}
         <a href="{{ href }}" {% if _on %}aria-current="page"{% endif %}
-           class="block px-3 py-2.5 rounded-lg transition {{ 'text-wine-400 bg-wine-500/10' if _on else 'text-neutral-300 hover:text-wine-400 hover:bg-neutral-800/60' }}">{{ label }}</a>
+           class="block rounded-lg px-4 py-3 text-lg font-display transition {{ 'text-wine-400 bg-wine-500/10' if _on else 'text-neutral-200 hover:text-wine-400 hover:bg-neutral-800/60' }}">{{ label }}</a>
     {%- endmacro -%}
 
     <!-- Nav -->
@@ -245,41 +245,61 @@
                 </div>
             </div>
         </div>
+    </nav>
 
-        <!-- Mobile menu (below lg) -->
-        <div id="mobile-menu" class="lg:hidden border-t border-neutral-800 bg-neutral-950" hidden>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 space-y-1 text-sm">
-                <div class="relative mb-2">
-                    <input type="search" id="global-search-mobile" placeholder="Search wines, wineries…" autocomplete="off"
-                           class="w-full bg-neutral-800 border border-neutral-700 rounded-lg pl-9 pr-3 py-2 text-sm text-neutral-300 placeholder-neutral-500 focus:border-wine-500 focus:outline-none"
-                           hx-get="/api/wines/global-search" hx-trigger="keyup changed delay:300ms"
-                           hx-target="#search-results-mobile" hx-swap="innerHTML">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-                    <div id="search-results-mobile" class="mt-1 bg-neutral-900 border border-neutral-700 rounded-lg overflow-hidden empty:hidden"></div>
+    <!-- Mobile menu (below lg) — full-screen overlay.
+         Kept outside <nav> because the nav's backdrop-filter would otherwise
+         become the containing block for this position:fixed element. -->
+    <div id="mobile-menu" class="lg:hidden fixed inset-0 z-[1300] bg-neutral-950 overflow-y-auto overscroll-contain" hidden>
+            <div class="min-h-full flex flex-col">
+                <!-- overlay header: brand + close, aligned to the nav bar -->
+                <div class="flex items-center justify-between h-14 px-4 sm:px-6 shrink-0">
+                    <a href="/" class="flex items-center gap-2 text-xl font-display text-wine-400">
+                        <span>🍷</span><span>WINE</span>
+                    </a>
+                    <button id="nav-close" class="p-2 -mr-2 text-neutral-300 hover:text-white" aria-label="Close navigation">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
+                        </svg>
+                    </button>
                 </div>
-                {{ mobilelink('/map', 'Map') }}
-                {{ mobilelink('/feed', 'Feed') }}
-                {{ mobilelink('/wineries', 'Wineries') }}
-                {{ mobilelink('/groups', 'Groups') }}
-                {{ mobilelink('/wine/add', 'Add Wine') }}
-                {{ mobilelink('/wine/scan', 'Scan Bottle') }}
-                {{ mobilelink('/api/menu/scan', 'Scan Menu') }}
-                {{ mobilelink('/wishlist', 'Wishlist') }}
-                {{ mobilelink('/dashboard', 'Dashboard') }}
-                <div class="pt-2 mt-2 border-t border-neutral-800">
-                {% if user %}
-                    {{ mobilelink('/profile/' ~ user.id, (user.display_name or user.username)) }}
-                    <form action="/api/auth/logout" method="post">
-                        <button type="submit" class="block w-full text-left px-3 py-2.5 rounded-lg text-red-400 hover:bg-neutral-800/60 transition">Log out</button>
-                    </form>
-                {% else %}
-                    {{ mobilelink('/api/auth/login', 'Login') }}
-                    {{ mobilelink('/api/auth/register', 'Sign Up') }}
-                {% endif %}
+
+                <div class="flex-1 flex flex-col justify-center w-full max-w-sm mx-auto px-6 pb-16">
+                    <div class="relative mb-6">
+                        <input type="search" id="global-search-mobile" placeholder="Search wines, wineries…" autocomplete="off"
+                               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg pl-10 pr-3 py-3 text-base text-neutral-200 placeholder-neutral-500 focus:border-wine-500 focus:outline-none"
+                               hx-get="/api/wines/global-search" hx-trigger="keyup changed delay:300ms"
+                               hx-target="#search-results-mobile" hx-swap="innerHTML">
+                        <svg class="absolute left-3 top-[1.35rem] -translate-y-1/2 text-neutral-500 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                        <div id="search-results-mobile" class="mt-1 bg-neutral-900 border border-neutral-700 rounded-lg overflow-hidden empty:hidden"></div>
+                    </div>
+
+                    <nav class="flex flex-col gap-0.5">
+                        {{ mobilelink('/map', 'Map') }}
+                        {{ mobilelink('/feed', 'Feed') }}
+                        {{ mobilelink('/wineries', 'Wineries') }}
+                        {{ mobilelink('/groups', 'Groups') }}
+                        {{ mobilelink('/wine/add', 'Add Wine') }}
+                        {{ mobilelink('/wine/scan', 'Scan Bottle') }}
+                        {{ mobilelink('/api/menu/scan', 'Scan Menu') }}
+                        {{ mobilelink('/wishlist', 'Wishlist') }}
+                        {{ mobilelink('/dashboard', 'Dashboard') }}
+                    </nav>
+
+                    <div class="mt-6 pt-6 border-t border-neutral-800">
+                    {% if user %}
+                        {{ mobilelink('/profile/' ~ user.id, (user.display_name or user.username)) }}
+                        <form action="/api/auth/logout" method="post">
+                            <button type="submit" class="block w-full rounded-lg px-4 py-3 text-lg font-display text-red-400 hover:bg-neutral-800/60 transition">Log out</button>
+                        </form>
+                    {% else %}
+                        {{ mobilelink('/api/auth/login', 'Login') }}
+                        {{ mobilelink('/api/auth/register', 'Sign Up') }}
+                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-    </nav>
 
     <!-- Toast container -->
     <div id="toast-container"></div>
@@ -310,16 +330,35 @@
         (function () {
             var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-            // Mobile nav
+            // Mobile nav — full-screen overlay
             var btn = document.getElementById('nav-toggle');
             var menu = document.getElementById('mobile-menu');
-            if (btn && menu) {
-                btn.addEventListener('click', function () {
-                    var willOpen = menu.hidden;
-                    menu.hidden = !willOpen;
-                    btn.setAttribute('aria-expanded', String(willOpen));
+            var navClose = document.getElementById('nav-close');
+            function setMobileNav(open) {
+                if (!menu) return;
+                menu.hidden = !open;
+                if (btn) btn.setAttribute('aria-expanded', String(open));
+                document.body.classList.toggle('overflow-hidden', open);
+                if (open && navClose) {
+                    navClose.focus({ preventScroll: true });
+                } else if (!open && btn) {
+                    btn.focus({ preventScroll: true });
+                }
+            }
+            if (btn) btn.addEventListener('click', function () { setMobileNav(menu.hidden); });
+            if (navClose) navClose.addEventListener('click', function () { setMobileNav(false); });
+            if (menu) {
+                menu.addEventListener('click', function (e) {
+                    if (e.target.closest('a')) setMobileNav(false);
                 });
             }
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && menu && !menu.hidden) setMobileNav(false);
+            });
+            // Close the overlay if the viewport grows past the mobile breakpoint.
+            window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
+                if (e.matches && menu && !menu.hidden) setMobileNav(false);
+            });
 
             // Nav dropdowns (More, profile)
             var dropdowns = Array.prototype.slice.call(document.querySelectorAll('[data-dropdown]'));
