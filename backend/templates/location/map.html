@@ -46,6 +46,20 @@
     </button>
 
     <div id="wine-map" class="w-full h-full"></div>
+
+    <!-- Onboarding overlay (first visit) -->
+    <div id="map-onboard" class="hidden">
+        <div class="icon">🗺️</div>
+        <h2>Welcome to the Wine Map</h2>
+        <div class="steps">
+            <div class="step"><span class="emoji">📍</span><span class="label">Pin a tasting</span></div>
+            <div class="step"><span class="emoji">🔍</span><span class="label">Zoom to explore</span></div>
+            <div class="step"><span class="emoji">🏘️</span><span class="label">Find wineries</span></div>
+            <div class="step"><span class="emoji">🔥</span><span class="label">Heatmap view</span></div>
+        </div>
+        <p>Every wine you log gets pinned to a map. See what people are drinking near you, discover wineries, and explore the world of wine.</p>
+        <button class="dismiss" onclick="dismissMapOnboard()">Got it! 🍷</button>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
@@ -253,6 +267,17 @@ function findNearMe() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', initMap);
+document.addEventListener('DOMContentLoaded', function () {
+    initMap();
+    // Show onboarding on first visit
+    if (!localStorage.getItem('map-onboard-dismissed')) {
+        document.getElementById('map-onboard').classList.remove('hidden');
+    }
+});
+
+function dismissMapOnboard() {
+    localStorage.setItem('map-onboard-dismissed', 'true');
+    document.getElementById('map-onboard').classList.add('hidden');
+}
 </script>
 {% endblock %}

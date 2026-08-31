@@ -23,12 +23,43 @@ router = APIRouter(tags=["pages"])
 
 @router.get("/", response_class=HTMLResponse)
 async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Landing page with feed and mini map."""
+    """Landing page with personalized content for logged-in users."""
     user = await get_current_user(request, db)
 
-    # Latest tastings
+    # Personal data for logged-in users
+    personal = {}
+    if user:
+        from backend.models.wine import WishlistEntry
+        from backend.models.community import Follow
+        # Wishlist count
+        wl = await db.execute(
+            select(func.count()).select_from(WishlistEntry).where(WishlistEntry.user_id == user.id)
+        )
+        personal["wishlist_count"] = wl.scalar() or 0
+        # Recent tastings by user
+        recent = await db.execute(
+            select(TastingNote)
+            .options(selectinload(TastingNote.wine))
+            .where(TastingNote.user_id == user.id)
+            .order_by(TastingNote.created_at.desc())
+            .limit(5)
+        )
+        personal["recent_tastings"] = list(recent.scalars().all())
+        # Following count
+        fg = await db.execute(
+            select(func.count()).select_from(Follow).where(Follow.follower_id == user.id)
+        )
+        personal["following_count"] = fg.scalar() or 0
+        # Follower count
+        fr = await db.execute(
+            select(func.count()).select_from(Follow).where(Follow.followed_id == user.id)
+        )
+        personal["follower_count"] = fr.scalar() or 0
+
+    # Latest public tastings
     stmt = (
         select(TastingNote)
+        .options(selectinload(TastingNote.wine), selectinload(TastingNote.user), selectinload(TastingNote.location))
         .where(TastingNote.is_public == True)
         .order_by(TastingNote.created_at.desc())
         .limit(20)
@@ -52,6 +83,7 @@ async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
             "tasting_count": tasting_count,
             "user_count": user_count,
             "winery_count": winery_count,
+            "personal": personal,
         },
     )
 

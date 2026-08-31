@@ -29,10 +29,10 @@
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-sm">
-            {% if wine.region %}<div><span class="text-neutral-400">Region</span><br>{{ wine.region }}</div>{% endif %}
+            {% if wine.region %}<div><span class="text-neutral-400">Region</span><br><a href="/wineries?q={{ wine.region }}" class="hover:text-wine-300 transition">🏘️ {{ wine.region }}</a></div>{% endif %}
             {% if wine.country %}<div><span class="text-neutral-400">Country</span><br>{{ wine.country }}</div>{% endif %}
-            {% if wine.varietal %}<div><span class="text-neutral-400">Varietal</span><br>{{ wine.varietal }}</div>{% endif %}
-            <div><span class="text-neutral-400">Type</span><br>{{ wine.wine_type|capitalize }}</div>
+            {% if wine.varietal %}<div><span class="text-neutral-400">Varietal</span><br><a href="/api/wines/search?q={{ wine.varietal }}" class="hover:text-wine-300 transition">🍇 {{ wine.varietal }}</a></div>{% endif %}
+            <div><span class="text-neutral-400">Type</span><br><span class="capitalize">{{ wine.wine_type }}</span></div>
             {% if wine.abv %}<div><span class="text-neutral-400">ABV</span><br>{{ wine.abv }}%</div>{% endif %}
         </div>
 

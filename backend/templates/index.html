@@ -2,7 +2,53 @@
 {% block title %}Home{% endblock %}
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-8" data-animate>
-    <!-- Hero -->
+    <!-- Personalized header for logged-in users -->
+    {% if user and personal %}
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-display text-wine-300">Welcome back, {{ user.display_name }}</h1>
+                <p class="text-neutral-400 text-sm mt-1">Here's what's happening</p>
+            </div>
+            <a href="/wine/add" class="bg-wine-600 hover:bg-wine-500 px-4 py-2 rounded-lg text-white text-sm font-medium transition hidden sm:inline-block">🍷 Log a wine</a>
+        </div>
+        <!-- Personal stats row -->
+        <div class="grid grid-cols-4 gap-3 max-w-lg text-center">
+            <div class="bg-neutral-900 rounded-xl p-3 border border-neutral-800">
+                <div class="text-lg font-display text-wine-400">{{ personal.wishlist_count }}</div>
+                <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">⭐ Saved</div>
+            </div>
+            <div class="bg-neutral-900 rounded-xl p-3 border border-neutral-800">
+                <div class="text-lg font-display text-wine-400">{{ personal.following_count }}</div>
+                <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Following</div>
+            </div>
+            <div class="bg-neutral-900 rounded-xl p-3 border border-neutral-800">
+                <div class="text-lg font-display text-wine-400">{{ personal.follower_count }}</div>
+                <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Followers</div>
+            </div>
+            <div class="bg-neutral-900 rounded-xl p-3 border border-neutral-800">
+                <div class="text-lg font-display text-wine-400">{{ personal.recent_tastings|length }}</div>
+                <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Recent</div>
+            </div>
+        </div>
+        {% if personal.recent_tastings %}
+        <div class="mt-4">
+            <p class="text-xs text-neutral-500 mb-2">Your recent tastings</p>
+            <div class="flex flex-wrap gap-2">
+                {% for note in personal.recent_tastings[:4] %}
+                <a href="/wine/{{ note.wine.id }}" class="bg-neutral-900 border border-neutral-700 hover:border-wine-500 rounded-full px-3 py-1 text-xs text-neutral-300 transition truncate max-w-[200px]">
+                    🍷 {{ note.wine.display_name }}
+                </a>
+                {% endfor %}
+                {% if personal.wishlist_count > 0 %}
+                <a href="/wishlist" class="bg-neutral-900 border border-wine-800 hover:border-wine-500 rounded-full px-3 py-1 text-xs text-wine-400 transition">⭐ {{ personal.wishlist_count }} saved</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <!-- Hero for guests -->
     <div class="text-center mb-10 pt-6">
         <h1 class="text-4xl md:text-6xl font-display text-wine-300 mb-3 tracking-tight">🍷 WINE</h1>
         <p class="text-neutral-400 text-lg max-w-xl mx-auto">Track your tastings. Pin every pour. Discover what others are drinking near you.</p>
@@ -13,8 +59,9 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
 
-    <!-- Stats Row -->
+    <!-- Stats Row (global) -->
     <div class="grid grid-cols-4 gap-3 max-w-2xl mx-auto mb-10 text-center">
         <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
             <div class="text-2xl md:text-3xl font-display text-wine-400" data-count="{{ wine_count }}">{{ wine_count }}</div>
@@ -56,16 +103,26 @@
                 <div class="skeleton skeleton-card"></div>
             </div>
         </div>
+        <div id="load-more-wrap" class="text-center mt-6 hidden">
+            <button id="load-more-btn" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-6 py-2.5 rounded-lg text-sm border border-neutral-700 transition"
+                    onclick="loadMoreFeed()">Load More</button>
+        </div>
     </div>
 </div>
 
 <script>
 (function () {
     const container = document.getElementById('feed-list');
+    let feedOffset = 0;
+    const FEED_LIMIT = 10;
 
     function render(items) {
         if (!items.length) {
-            container.innerHTML = '<div class="text-neutral-500 text-center py-8">No tastings yet. <a href="/wine/add" class="text-wine-400 hover:underline">Be the first!</a></div>';
+            container.innerHTML = '<div class="text-neutral-500 text-center py-16">' +
+                '<div class="text-5xl mb-4">🍷</div>' +
+                '<p>No tastings yet.</p>' +
+                '<p class="text-sm mt-2"><a href="/wine/add" class="text-wine-400 hover:underline">Be the first!</a></p>' +
+                '</div>';
             return;
         }
         container.innerHTML = items.map(function (item) {
@@ -78,7 +135,7 @@
                     : '<span>📍 ' + esc(item.location_name) + '</span>')
                 : '';
             const notes = item.notes
-                ? '<p class="text-sm text-neutral-400 mt-2">“' + esc(item.notes) + '”</p>' : '';
+                ? '<p class="text-sm text-neutral-400 mt-2">"'+ esc(item.notes) + '"</p>' : '';
             return '' +
               '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
                 '<div class="flex items-start gap-3">' + photo +
@@ -98,12 +155,43 @@
         }).join('');
     }
 
-    fetch('/api/feed?limit=20')
-        .then(function (r) { return r.json(); })
-        .then(function (d) { render(d.items || []); })
-        .catch(function () {
-            container.innerHTML = '<div class="text-neutral-500 text-center py-8">Could not load the feed.</div>';
-        });
+    function loadFeed() {
+        fetch('/api/feed?limit=' + FEED_LIMIT + '&offset=' + feedOffset)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var items = d.items || [];
+                if (feedOffset === 0) {
+                    render(items);
+                } else {
+                    items.forEach(function (item) {
+                        var div = document.createElement('div');
+                        div.className = 'bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3';
+                        div.innerHTML = '';
+                        // Append to existing
+                        container.appendChild(div);
+                    });
+                    // Re-render full
+                    var existing = items;
+                    render(items);
+                }
+                feedOffset += items.length;
+                var wrap = document.getElementById('load-more-wrap');
+                if (d.has_more) {
+                    wrap.classList.remove('hidden');
+                } else {
+                    wrap.classList.add('hidden');
+                }
+            })
+            .catch(function () {
+                container.innerHTML = '<div class="text-neutral-500 text-center py-8">Could not load the feed.</div>';
+            });
+    }
+
+    window.loadMoreFeed = function () {
+        loadFeed();
+    };
+
+    loadFeed();
 
     // Load wine of the day
     fetch('/api/wines/wine-of-the-day')
@@ -111,9 +199,9 @@
         .then(function (d) {
             var w = d.wine || d;
             if (!w || !w.id) return;
-            var container = document.getElementById('wine-of-day');
+            var wc = document.getElementById('wine-of-day');
             var stars = w.avg_rating ? '★'.repeat(Math.min(w.avg_rating|0,5)) + '☆'.repeat(Math.max(5-Math.min(w.avg_rating|0,5),0)) : '';
-            container.innerHTML = '<a href="/wine/' + encodeURIComponent(w.id) + '" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-wine-700 transition">' +
+            wc.innerHTML = '<a href="/wine/' + encodeURIComponent(w.id) + '" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-wine-700 transition">' +
                 '<div class="flex items-center gap-2 mb-2"><span class="text-lg">🍷</span><span class="text-xs uppercase tracking-wider text-wine-400 font-medium">Wine of the Day</span></div>' +
                 '<div class="font-display text-lg text-wine-300">' + esc(w.display) + '</div>' +
                 '<div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">' +

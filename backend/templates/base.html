@@ -70,6 +70,28 @@
         .breadcrumbs a { color:#a3a3a3; text-decoration:none; }
         .breadcrumbs a:hover { color:#e98844; }
         .breadcrumbs .sep { color:#525252; }
+
+        /* ── Map onboarding overlay ── */
+        #map-onboard { position:absolute; inset:0; z-index:900; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem; animation:fadeIn 0.5s ease-out; }
+        #map-onboard.hidden { display:none; }
+        #map-onboard .icon { font-size:4rem; margin-bottom:1rem; }
+        #map-onboard h2 { font-size:1.5rem; font-weight:600; margin-bottom:0.5rem; color:#e4e4e7; }
+        #map-onboard p { color:#a1a1aa; max-width:24rem; line-height:1.5; margin-bottom:1.5rem; }
+        #map-onboard .dismiss { background:#d45518; color:white; padding:0.75rem 2rem; border-radius:0.75rem; font-weight:500; border:none; cursor:pointer; transition:all 0.15s; }
+        #map-onboard .dismiss:hover { background:#e98844; }
+        #map-onboard .steps { display:flex; gap:1.5rem; margin-bottom:1.5rem; flex-wrap:wrap; justify-content:center; }
+        #map-onboard .step { display:flex; flex-direction:column; align-items:center; gap:0.25rem; }
+        #map-onboard .step .emoji { font-size:1.5rem; }
+        #map-onboard .step .label { font-size:0.75rem; color:#a1a1aa; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+        /* ── Empty state illustrations ── */
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state .icon { font-size:4rem; margin-bottom:1rem; }
+        .empty-state h3 { font-size:1.125rem; font-weight:500; color:#d4d4d8; margin-bottom:0.25rem; }
+        .empty-state p { color:#a1a1aa; font-size:0.875rem; max-width:20rem; margin:0 auto; line-height:1.5; }
+        .empty-state .action { margin-top:1rem; display:inline-block; background:#d45518; color:white; padding:0.5rem 1.25rem; border-radius:0.5rem; font-size:0.875rem; text-decoration:none; transition:all 0.15s; }
+        .empty-state .action:hover { background:#e98844; }
     </style>
     <script>
         // Shared helpers — ALWAYS run user-derived strings through esc() before

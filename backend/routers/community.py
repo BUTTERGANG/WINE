@@ -50,19 +50,22 @@ async def get_feed(
     request: Request,
     db: AsyncSession = Depends(get_db),
     limit: int = 30,
+    offset: int = 0,
 ):
-    """Recent public tasting notes for the global feed."""
+    """Recent public tasting notes for the global feed. Supports offset pagination."""
     stmt = (
         select(TastingNote)
         .options(selectinload(TastingNote.wine), selectinload(TastingNote.user), selectinload(TastingNote.location))
         .where(TastingNote.is_public == True)
         .order_by(TastingNote.created_at.desc())
+        .offset(offset)
         .limit(limit)
     )
     result = await db.execute(stmt)
     notes = result.scalars().all()
+    has_more = len(notes) >= limit
 
-    return {"items": [_feed_item(n) for n in notes]}
+    return {"items": [_feed_item(n) for n in notes], "has_more": has_more}
 
 
 @router.get("/feed/personal")
@@ -70,17 +73,17 @@ async def get_personal_feed(
     request: Request,
     db: AsyncSession = Depends(get_db),
     limit: int = 30,
+    offset: int = 0,
 ):
-    """Feed filtered to users the current user follows."""
+    """Feed filtered to users the current user follows. Supports offset pagination."""
     user = await get_current_user(request, db)
     if not user:
         return {"items": []}
 
-    # Get followed user IDs
     follow_result = await db.execute(
         select(Follow.followed_id).where(Follow.follower_id == user.id)
     )
-    followed_ids = [row[0] for row in follow_result.all()] + [user.id]  # Include own tastings
+    followed_ids = [row[0] for row in follow_result.all()] + [user.id]
 
     stmt = (
         select(TastingNote)
@@ -88,12 +91,14 @@ async def get_personal_feed(
         .where(TastingNote.is_public == True)
         .where(TastingNote.user_id.in_(followed_ids))
         .order_by(TastingNote.created_at.desc())
+        .offset(offset)
         .limit(limit)
     )
     result = await db.execute(stmt)
     notes = result.scalars().all()
+    has_more = len(notes) >= limit
 
-    return {"items": [_feed_item(n) for n in notes]}
+    return {"items": [_feed_item(n) for n in notes], "has_more": has_more}
 
 
 # ── Follows ──────────────────────────────────────────────────────────────
