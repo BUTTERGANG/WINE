@@ -338,7 +338,7 @@ async def import_to_database(wineries: list[dict]) -> tuple[int, int]:
                     Location.lon <= w["lon"] + 0.02,
                 )
             )
-            if result.scalar_one_or_none():
+            if result.first() is not None:
                 skipped += 1
                 continue
 
