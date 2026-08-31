@@ -67,7 +67,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
-let theMap = null;
+let map = null;
 let markersLayer;
 let clusterGroup;
 let heatLayer;
@@ -78,13 +78,13 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s || 
 function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
 
 function initMap() {
-    theMap = L.map('wine-map', { tap: true, touchZoom: true }).setView([40, -95], 4);
+    map = L.map('wine-map', { tap: true, touchZoom: true }).setView([40, -95], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18,
-    }).addTo(theMap);
+    }).addTo(map);
 
-    markersLayer = L.layerGroup().addTo(theMap);
+    markersLayer = L.layerGroup().addTo(map);
     clusterGroup = L.markerClusterGroup({
         chunkedLoading: true,
         maxClusterRadius: 50,
@@ -93,13 +93,13 @@ function initMap() {
         zoomToBoundsOnClick: true,
         disableClusteringAtZoom: 16,
     });
-    theMap.addLayer(clusterGroup);
+    map.addLayer(clusterGroup);
 
     navigator.geolocation?.getCurrentPosition(pos => {
-        theMap.setView([pos.coords.latitude, pos.coords.longitude], 10);
+        map.setView([pos.coords.latitude, pos.coords.longitude], 10);
     }, () => {});
 
-    theMap.on('moveend', () => debounceLoadPins());
+    map.on('moveend', () => debounceLoadPins());
     loadPins();
 }
 
