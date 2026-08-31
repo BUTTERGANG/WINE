@@ -20,7 +20,7 @@ from backend.services.wineries import (
 )
 from backend.config import settings
 from backend.services.template import templates
-from backend.services.geo_lookup import resolve_state, zip_prefix_region, is_zip
+from backend.services.geo_lookup import resolve_state, resolve_zip
 
 router = APIRouter(prefix="/api/wineries", tags=["wineries"])
 
@@ -106,25 +106,16 @@ async def locate_wineries(
     {found, lat, lon, zoom, label, count}."""
     q = q.strip()
 
-    # 1. US ZIP code — prefer a winery whose address carries that ZIP.
-    zip5 = is_zip(q)
-    if zip5:
-        rows = await db.execute(
-            select(Location.lat, Location.lon)
-            .where(Location.venue_type == "winery", Location.address.ilike(f"%{zip5}%"))
-            .limit(50)
-        )
-        pts = rows.all()
-        if pts:
-            lat = sum(p[0] for p in pts) / len(pts)
-            lon = sum(p[1] for p in pts) / len(pts)
-            return {"found": True, "lat": lat, "lon": lon, "zoom": 11,
-                    "label": f"ZIP {zip5}", "count": len(pts)}
-        region = zip_prefix_region(q)
-        if region:
-            _, lat, lon = region
-            return {"found": True, "lat": lat, "lon": lon, "zoom": 8,
-                    "label": f"ZIP {zip5} (approx.)", "count": 0}
+    # 1. US ZIP code — GeoNames centroid (falls back to a coarse region).
+    zip_hit = resolve_zip(q)
+    if zip_hit:
+        zip5, lat, lon, exact = zip_hit
+        return {
+            "found": True, "lat": lat, "lon": lon,
+            "zoom": 12 if exact else 8,
+            "label": f"ZIP {zip5}" if exact else f"ZIP {zip5} (approx.)",
+            "count": 0,
+        }
 
     # 2. US state by name or 2-letter abbreviation.
     state = resolve_state(q)

@@ -3,7 +3,23 @@ map location. No network required; used to fly the map to a search target."""
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
+
+_ZIP_CENTROIDS_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "zip_centroids.json"
+
+
+def _load_zip_centroids() -> dict[str, list[float]]:
+    try:
+        with open(_ZIP_CENTROIDS_PATH) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+# zip5 -> [lat, lon]; ~41k US ZIP code centroids from GeoNames.
+ZIP_CENTROIDS: dict[str, list[float]] = _load_zip_centroids()
 
 # Approximate geographic centers of US states/territories: abbr -> (lat, lon).
 US_STATE_CENTROIDS: dict[str, tuple[float, float]] = {
@@ -68,14 +84,21 @@ def resolve_state(query: str) -> tuple[str, float, float] | None:
     return None
 
 
-def zip_prefix_region(query: str) -> tuple[str, float, float] | None:
-    """Return (zip5, lat, lon) using the ZIP's first-digit region, else None."""
+def resolve_zip(query: str) -> tuple[str, float, float, bool] | None:
+    """Resolve a US ZIP to (zip5, lat, lon, exact).
+
+    ``exact`` is True for a real GeoNames centroid, False for the coarse
+    first-digit fallback used when a ZIP isn't in the dataset.
+    """
     m = ZIP_RE.match(query or "")
     if not m:
         return None
     zip5 = m.group(1)
+    pt = ZIP_CENTROIDS.get(zip5)
+    if pt:
+        return zip5, pt[0], pt[1], True
     lat, lon = ZIP1_REGIONS.get(zip5[0], (39.5, -98.35))
-    return zip5, lat, lon
+    return zip5, lat, lon, False
 
 
 def is_zip(query: str) -> str | None:
