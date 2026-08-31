@@ -161,19 +161,26 @@ async def get_wineries_nearby(
         .where(Location.venue_type == "winery")
         .where(Location.lat.between(lat_min, lat_max))
         .where(Location.lon.between(lon_min, lon_max))
-        .limit(100)
+        .limit(500)
     )
 
     result = await db.execute(stmt)
     wineries = result.scalars().all()
 
+    # Tasting counts for all wineries in one grouped query (avoids N+1).
+    winery_ids = [w.id for w in wineries]
+    counts = {}
+    if winery_ids:
+        rows = await db.execute(
+            select(TastingNote.location_id, func.count())
+            .where(TastingNote.location_id.in_(winery_ids))
+            .group_by(TastingNote.location_id)
+        )
+        counts = {loc_id: n for loc_id, n in rows.all()}
+
     features = []
     for w in wineries:
-        # Count tastings at this winery
-        tn_count = await db.execute(
-            select(func.count()).select_from(TastingNote).where(TastingNote.location_id == w.id)
-        )
-        tasting_count = tn_count.scalar() or 0
+        tasting_count = counts.get(w.id, 0)
 
         features.append({
             "type": "Feature",

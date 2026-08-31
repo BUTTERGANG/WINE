@@ -133,17 +133,26 @@ function loadHeat() {
         .catch(() => {});
 }
 
+// Radius (km) that covers the visible map — center to a viewport corner.
+function viewportRadiusKm() {
+    const b = map.getBounds();
+    return Math.ceil(b.getCenter().distanceTo(b.getNorthEast()) / 1000);
+}
+
 function loadMarkers() {
     const center = map.getBounds().getCenter();
     const radius = document.getElementById('radius-slider').value;
     const typeFilter = document.getElementById('type-filter').value;
 
     markersLayer.clearLayers();
+    clusterGroup.clearLayers();
     if (heatLayer) map.removeLayer(heatLayer);
 
-    // Winery mode — load winery pins instead of tasting pins
+    // Winery mode — load winery pins instead of tasting pins.
+    // Wineries are a fixed dataset, so scan the whole visible map rather
+    // than the (tasting-oriented) radius slider.
     if (currentFilter === 'wineries') {
-        loadWineries(center, radius);
+        loadWineries(center, viewportRadiusKm());
         return;
     }
 
@@ -251,6 +260,9 @@ function loadWineries(center, radius) {
                 `);
                 clusterGroup.addLayer(marker);
             });
+        })
+        .catch(() => {
+            if (window.showToast) window.showToast('Could not load wineries — try again', 'error');
         });
 }
 
