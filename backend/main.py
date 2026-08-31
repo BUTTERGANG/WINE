@@ -5,9 +5,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.database import init_db
+from backend.database import init_db, get_db
 
 
 @asynccontextmanager
@@ -56,3 +58,24 @@ app.include_router(menu.router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/api/stats")
+async def live_stats(db: AsyncSession = Depends(get_db)):
+    """Live stats for the home page — HTMX-polled every 30s."""
+    from sqlalchemy import select, func
+    from backend.models.wine import Wine, TastingNote
+    from backend.models.user import User
+    from backend.models.location import Location
+    wine_count = (await db.execute(select(func.count()).select_from(Wine))).scalar() or 0
+    tasting_count = (await db.execute(select(func.count()).select_from(TastingNote))).scalar() or 0
+    user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
+    winery_count = (await db.execute(select(func.count()).select_from(Location).where(Location.venue_type == "winery"))).scalar() or 0
+    from fastapi.responses import HTMLResponse
+    html = f"""<div class="grid grid-cols-4 gap-3 max-w-2xl mx-auto mb-10 text-center" id="live-stats">
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800"><div class="text-2xl md:text-3xl font-display text-wine-400">{wine_count}</div><div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Wines</div></div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800"><div class="text-2xl md:text-3xl font-display text-wine-400">{tasting_count}</div><div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Tastings</div></div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800"><div class="text-2xl md:text-3xl font-display text-wine-400">{winery_count}</div><div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Wineries</div></div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800"><div class="text-2xl md:text-3xl font-display text-wine-400">{user_count}</div><div class="text-xs text-neutral-400 uppercase tracking-[0.15em] mt-0.5">Drinkers</div></div>
+    </div>"""
+    return HTMLResponse(html)

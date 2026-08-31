@@ -92,6 +92,13 @@
         .empty-state p { color:#a1a1aa; font-size:0.875rem; max-width:20rem; margin:0 auto; line-height:1.5; }
         .empty-state .action { margin-top:1rem; display:inline-block; background:#d45518; color:white; padding:0.5rem 1.25rem; border-radius:0.5rem; font-size:0.875rem; text-decoration:none; transition:all 0.15s; }
         .empty-state .action:hover { background:#e98844; }
+
+        /* ── View Transitions ── */
+        @view-transition { navigation: auto; }
+        ::view-transition-old(root) { animation:fade-out 0.2s ease-out; }
+        ::view-transition-new(root) { animation:fade-in 0.3s ease-out; }
+        @keyframes fade-out { to { opacity:0; } }
+        @keyframes fade-in { from { opacity:0; } to { opacity:1; } }
     </style>
     <script>
         // Shared helpers — ALWAYS run user-derived strings through esc() before
@@ -135,6 +142,10 @@
     </script>
 </head>
 <body class="text-neutral-200 min-h-screen flex flex-col">
+    <!-- Skip to content (keyboard users) -->
+    <a href="#main-content" id="skip-link" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[2000] focus:bg-wine-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm"
+       aria-label="Skip to main content">Skip to content</a>
+
     <!-- Nav -->
     <nav class="border-b border-neutral-800 bg-neutral-950/70 backdrop-blur-md sticky top-0 z-[1100]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -231,7 +242,7 @@
     {% endif %}
 
     <!-- Main -->
-    <main class="flex-1">
+    <main id="main-content" class="flex-1">
         {% block breadcrumbs %}{% endblock %}
         {% block content %}{% endblock %}
     </main>
@@ -327,6 +338,44 @@
                 });
                 htmxObserver.observe(searchResults, { childList: true, subtree: true });
             }
+
+            // ── Page transitions (View Transitions API) ──
+            if (!reduce && document.startViewTransition) {
+                document.querySelectorAll('a:not([target="_blank"]):not([href^="#"])').forEach(function (a) {
+                    a.addEventListener('click', function (e) {
+                        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+                        var href = a.getAttribute('href');
+                        if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+                        e.preventDefault();
+                        document.startViewTransition(function () {
+                            window.location.href = href;
+                        });
+                    });
+                });
+            }
+
+            // ── Keyboard shortcuts ──
+            var shortcutKeys = '';
+            document.addEventListener('keydown', function (e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+                if (e.key === 'g' && !e.ctrlKey && !e.metaKey) {
+                    shortcutKeys = 'g';
+                    setTimeout(function () { shortcutKeys = ''; }, 500);
+                    return;
+                }
+                if (shortcutKeys === 'g') {
+                    shortcutKeys = '';
+                    if (e.key === 'h') { location.href = '/'; }
+                    else if (e.key === 'm') { location.href = '/map'; }
+                    else if (e.key === 'a') { location.href = '/wine/add'; }
+                    else if (e.key === 'f') { location.href = '/feed'; }
+                    else if (e.key === 'w') { location.href = '/wishlist'; }
+                    e.preventDefault();
+                }
+                if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+                    window.showToast('Shortcuts: g+h Home, g+m Map, g+a Add, g+f Feed, g+w Wishlist', 'info');
+                }
+            });
         })();
     </script>
     <script src="/static/js/map.js"></script>
