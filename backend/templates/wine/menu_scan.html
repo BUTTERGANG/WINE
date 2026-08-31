@@ -99,6 +99,7 @@ function addToWishlist(wineId, btn) {
             btn.textContent = data.saved ? '★ Saved' : '☆ Save';
             btn.classList.toggle('text-wine-300', data.saved);
             btn.classList.toggle('text-neutral-400', !data.saved);
+            window.showToast(data.saved ? 'Saved to wishlist!' : 'Removed from wishlist', data.saved ? 'success' : 'info');
         })
         .catch(() => {});
 }

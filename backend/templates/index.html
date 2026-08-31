@@ -37,7 +37,7 @@
     <!-- Wine of the Day + Mini Map -->
     <div class="grid md:grid-cols-2 gap-6 mb-10">
         <div id="wine-of-day">
-            <div class="text-neutral-500 text-center py-8 text-sm">Loading wine of the day…</div>
+            <div class="skeleton skeleton-card"></div>
         </div>
         <div id="home-map" class="h-56 md:h-64 rounded-2xl overflow-hidden border border-neutral-800" data-map-init="true">
             <div class="w-full h-full flex items-center justify-center text-neutral-500">Loading map…</div>
@@ -50,7 +50,11 @@
             <span>🍷</span> Recent Tastings
         </h2>
         <div class="space-y-3" id="feed-list" data-reveal-list>
-            <div class="text-neutral-500 text-center py-8">Loading tastings…</div>
+            <div class="space-y-3">
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+            </div>
         </div>
     </div>
 </div>

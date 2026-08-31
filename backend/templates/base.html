@@ -38,6 +38,39 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="stylesheet" href="/static/css/app.css">
+    <style>
+        /* ── Toast system ── */
+        #toast-container { position:fixed; bottom:5rem; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; }
+        .toast { pointer-events:auto; padding:0.625rem 1.25rem; border-radius:0.75rem; font-size:0.875rem; font-weight:500; box-shadow:0 8px 24px rgba(0,0,0,0.5); animation:toast-in 0.3s ease-out, toast-out 0.3s 2.7s ease-in forwards; backdrop-filter:blur(8px); }
+        .toast-success { background:#166534cc; color:#bbf7d0; border:1px solid #22c55e; }
+        .toast-error { background:#991b1bcc; color:#fecaca; border:1px solid #ef4444; }
+        .toast-info { background:#1e3a5fcc; color:#bfdbfe; border:1px solid #3b82f6; }
+        @keyframes toast-in { from { opacity:0; transform:translateY(1rem); } to { opacity:1; transform:translateY(0); } }
+        @keyframes toast-out { from { opacity:1; } to { opacity:0; } }
+
+        /* ── Skeleton shimmer ── */
+        .skeleton { background:linear-gradient(90deg, #262626 25%, #333 50%, #262626 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:0.5rem; }
+        .skeleton-text { height:0.875rem; margin-bottom:0.5rem; width:80%; }
+        .skeleton-text-sm { height:0.75rem; width:60%; }
+        .skeleton-block { height:5rem; }
+        .skeleton-card { height:6rem; border-radius:0.75rem; }
+        @keyframes shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+
+        /* ── Quick-add FAB ── */
+        #fab-btn { position:fixed; bottom:1.5rem; right:1.5rem; z-index:1050; width:3.5rem; height:3.5rem; border-radius:9999px; background:linear-gradient(135deg,#d45518,#e98844); color:white; font-size:1.5rem; box-shadow:0 4px 20px rgba(212,85,24,0.5); display:flex; align-items:center; justify-content:center; transition:all 0.2s; cursor:pointer; border:none; }
+        #fab-btn:hover { transform:scale(1.1); box-shadow:0 6px 28px rgba(212,85,24,0.6); }
+        #fab-btn:active { transform:scale(0.95); }
+        #fab-menu { position:fixed; bottom:6rem; right:1.5rem; z-index:1050; display:none; flex-direction:column; gap:0.5rem; }
+        #fab-menu.show { display:flex; }
+        #fab-menu a { background:#1a1a2ecc; backdrop-filter:blur(12px); border:1px solid #333; color:#e4e4e7; padding:0.75rem 1rem; border-radius:0.75rem; font-size:0.875rem; text-decoration:none; transition:all 0.15s; display:flex; align-items:center; gap:0.5rem; white-space:nowrap; }
+        #fab-menu a:hover { background:#2a2a3ecc; border-color:#e98844; }
+
+        /* ── Breadcrumbs ── */
+        .breadcrumbs { display:flex; align-items:center; gap:0.375rem; font-size:0.75rem; color:#737373; margin-bottom:1rem; flex-wrap:wrap; }
+        .breadcrumbs a { color:#a3a3a3; text-decoration:none; }
+        .breadcrumbs a:hover { color:#e98844; }
+        .breadcrumbs .sep { color:#525252; }
+    </style>
     <script>
         // Shared helpers — ALWAYS run user-derived strings through esc() before
         // putting them into innerHTML.
@@ -55,6 +88,28 @@
             const d = new Date(iso);
             return isNaN(d.getTime()) ? '' : d.toLocaleDateString();
         };
+        window.showToast = function (msg, type) {
+            type = type || 'success';
+            var c = document.getElementById('toast-container');
+            if (!c) return;
+            var t = document.createElement('div');
+            t.className = 'toast toast-' + type;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
+        };
+        window.toggleFabMenu = function () {
+            var m = document.getElementById('fab-menu');
+            if (m) m.classList.toggle('show');
+        };
+        // Close FAB menu when clicking outside
+        document.addEventListener('click', function (e) {
+            var btn = document.getElementById('fab-btn');
+            var m = document.getElementById('fab-menu');
+            if (btn && m && !btn.contains(e.target) && !m.contains(e.target)) {
+                m.classList.remove('show');
+            }
+        });
     </script>
 </head>
 <body class="text-neutral-200 min-h-screen flex flex-col">
@@ -118,10 +173,13 @@
             <div class="px-4 py-3 space-y-1 text-sm">
                 <a href="/" class="block py-2 hover:text-wine-400">Home</a>
                 <a href="/map" class="block py-2 hover:text-wine-400">Map</a>
+                <a href="/wineries" class="block py-2 hover:text-wine-400">Wineries</a>
                 <a href="/feed" class="block py-2 hover:text-wine-400">Feed</a>
                 <a href="/groups" class="block py-2 hover:text-wine-400">Groups</a>
                 <a href="/wine/add" class="block py-2 hover:text-wine-400">Add Wine</a>
                 <a href="/wine/scan" class="block py-2 hover:text-wine-400">Scan</a>
+                <a href="/api/menu/scan" class="block py-2 hover:text-wine-400">Menu</a>
+                <a href="/wishlist" class="block py-2 hover:text-wine-400">Wishlist</a>
                 <a href="/dashboard" class="block py-2 hover:text-wine-400">Dashboard</a>
                 <div class="pt-2 mt-2 border-t border-neutral-800">
                 {% if user %}
@@ -136,8 +194,23 @@
         </div>
     </nav>
 
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <!-- Quick-add FAB (logged-in only) -->
+    {% if user %}
+    <button id="fab-btn" onclick="toggleFabMenu()" aria-label="Quick add">🍷</button>
+    <div id="fab-menu">
+        <a href="/wine/add">🍷 Log a wine</a>
+        <a href="/wine/scan">📷 Scan bottle</a>
+        <a href="/api/menu/scan">📋 Scan menu</a>
+        <a href="/map">📍 Open map</a>
+    </div>
+    {% endif %}
+
     <!-- Main -->
     <main class="flex-1">
+        {% block breadcrumbs %}{% endblock %}
         {% block content %}{% endblock %}
     </main>
 

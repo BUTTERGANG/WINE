@@ -101,7 +101,7 @@
         paint(!wasFollowing); // optimistic
         fetch('/api/follow/{{ profile_user.id }}', { method: 'POST' })
             .then(r => r.ok ? r.json() : Promise.reject())
-            .then(d => paint(!!d.following))
+            .then(d => { paint(!!d.following); window.showToast(d.following ? 'Now following!' : 'Unfollowed', d.following ? 'success' : 'info'); })
             .catch(() => paint(wasFollowing))
             .finally(() => { btn.disabled = false; });
     });

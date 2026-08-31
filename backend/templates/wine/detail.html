@@ -1,7 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ wine.display_name }}{% endblock %}
+{% block breadcrumbs %}
+<div class="max-w-3xl mx-auto px-4 pt-6">
+    <div class="breadcrumbs">
+        <a href="/">Home</a>
+        <span class="sep">·</span>
+        <a href="/feed">Feed</a>
+        <span class="sep">·</span>
+        <span>{{ wine.display_name }}</span>
+    </div>
+</div>
+{% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8" data-animate>
+<div class="max-w-3xl mx-auto px-4 pb-8" data-animate>
     <div class="bg-neutral-900 rounded-xl p-6 md:p-8 border border-neutral-800">
         <div class="flex items-start justify-between gap-4">
             <div>
@@ -43,7 +54,10 @@
 
     <h2 class="text-lg font-display mt-8 mb-4">Tasting Notes</h2>
     <div id="reviews" class="space-y-3" data-reveal-list>
-        <div class="text-neutral-500 text-center py-8">Loading notes…</div>
+        <div class="space-y-3">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
     </div>
 </div>
 
@@ -97,9 +111,11 @@ function toggleWishlist(btn) {
             if (data.saved) {
                 btn.textContent = '⭐ Saved';
                 btn.classList.add('text-wine-300', 'border-wine-500');
+                window.showToast('Saved to wishlist!', 'success');
             } else {
                 btn.textContent = '⭐ Save';
                 btn.classList.remove('text-wine-300', 'border-wine-500');
+                window.showToast('Removed from wishlist', 'info');
             }
         });
 }

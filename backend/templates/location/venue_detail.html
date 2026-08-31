@@ -1,8 +1,19 @@
 {% extends "base.html" %}
 {% block title %}{{ venue.name }}{% endblock %}
 {% set icons = {'winery': '🏘️', 'restaurant': '🍽️', 'bar': '🍸', 'shop': '🛍️', 'home': '🏠'} %}
+{% block breadcrumbs %}
+<div class="max-w-3xl mx-auto px-4 pt-6">
+    <div class="breadcrumbs">
+        <a href="/">Home</a>
+        <span class="sep">·</span>
+        <a href="/map">Map</a>
+        <span class="sep">·</span>
+        <span>{{ venue.name }}</span>
+    </div>
+</div>
+{% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8" data-animate>
+<div class="max-w-3xl mx-auto px-4 pb-8" data-animate>
     <!-- Venue card -->
     <div class="bg-neutral-900 rounded-2xl p-6 border border-neutral-800">
         <div class="flex items-start gap-4">
