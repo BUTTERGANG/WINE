@@ -71,7 +71,7 @@ def save_checkpoint(cp: dict):
 def clear_checkpoint():
     if CHECKPOINT.exists():
         CHECKPOINT.unlink()
-        print("🧹 Checkpoint cleared")
+    print("🧹 Checkpoint cleared")
 
 
 def random_delay():
@@ -137,7 +137,7 @@ async def scrape_top_rated(limit: int = 50):
             print(f"   Page {page_num}...")
 
             try:
-                await page.goto(url, wait_until="networkidle", timeout=30000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
                 await asyncio.sleep(random.uniform(1, 2))
 
                 # Check if blocked
@@ -239,7 +239,7 @@ async def scrape_top_rated(limit: int = 50):
     # Write results
     if results:
         with open(OUTPUT, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=["brewery_id", "beer_id", "name", "url"])
+            w = csv.DictWriter(f, fieldnames=["brewery_id", "beer_id", "name", "brewery", "style", "abv", "ratings", "ba_score", "avg", "url"])
             w.writeheader()
             w.writerows(results)
         print(f"✅ Saved {len(results)} beers to {OUTPUT}")
