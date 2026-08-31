@@ -16,6 +16,22 @@ PORT = "5000"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[[ports]]
+localPort = 5055
+externalPort = 3001
+
+[[ports]]
+localPort = 5056
+externalPort = 3002
+
+[[ports]]
+localPort = 5057
+externalPort = 3003
+
 [deployment]
 run = ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
 deploymentTarget = "cloudrun"
