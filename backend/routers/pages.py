@@ -354,3 +354,41 @@ async def wishlist_page(request: Request, db: AsyncSession = Depends(get_db)):
     """User's wishlist / want to try."""
     user = await get_current_user(request, db)
     return templates.TemplateResponse("wine/wishlist.html", {"request": request, "user": user})
+
+
+# ── Spirit Pages ──────────────────────────────────────────────────
+
+
+@router.get("/spirit/add", response_class=HTMLResponse)
+async def add_spirit_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Add a spirit tasting."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("spirit/add.html", {"request": request, "user": user})
+
+
+@router.get("/spirit/feed", response_class=HTMLResponse)
+async def spirit_feed_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Spirit community feed."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("spirit/feed.html", {"request": request, "user": user})
+
+
+@router.get("/spirit/distilleries", response_class=HTMLResponse)
+async def distilleries_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Distillery browse page."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("spirit/distilleries.html", {"request": request, "user": user})
+
+
+@router.get("/spirit/wishlist", response_class=HTMLResponse)
+async def spirit_wishlist_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Spirit wishlist page."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("spirit/wishlist.html", {"request": request, "user": user})
+
+
+@router.get("/spirit/{spirit_id}", response_class=HTMLResponse)
+async def spirit_detail_page(spirit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Spirit detail page — delegates to the API router."""
+    from backend.routers.spirits import get_spirit_detail
+    return await get_spirit_detail(spirit_id, request, db)

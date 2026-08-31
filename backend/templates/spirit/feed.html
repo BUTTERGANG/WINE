@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Spirits Feed{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8" data-animate>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-display">🥃 Spirits</h1>
+            <p class="text-sm text-neutral-400">What everyone's drinking</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/spirit/add" class="bg-wine-600 hover:bg-wine-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">+ Log</a>
+            <a href="/spirit/distilleries" class="border border-neutral-700 hover:border-wine-500 px-3 py-1.5 rounded-lg text-xs transition">Distilleries</a>
+        </div>
+    </div>
+
+    <div id="spirit-feed" class="space-y-3">
+        <div class="space-y-3">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const container = document.getElementById('spirit-feed');
+    fetch('/api/spirit-feed')
+        .then(r => r.json())
+        .then(d => {
+            const items = d.items || [];
+            if (!items.length) {
+                container.innerHTML = '<div class="text-center py-16"><div class="text-5xl mb-4">🥃</div><p class="text-neutral-500">No spirits logged yet. <a href="/spirit/add" class="text-wine-400 hover:underline">Be the first!</a></p></div>';
+                return;
+            }
+            container.innerHTML = items.map(function (item) {
+                return '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
+                    '<div class="flex items-start gap-3">' +
+                      '<a href="/profile/' + encodeURIComponent(item.user_id) + '" class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-sm font-bold flex-shrink-0 hover:bg-wine-600 transition">' +
+                        (item.username || '?').charAt(0).toUpperCase() + '</a>' +
+                      '<div class="flex-1 min-w-0">' +
+                        '<div class="flex items-center gap-2">' +
+                          '<a href="/profile/' + encodeURIComponent(item.user_id) + '" class="font-medium text-sm hover:text-wine-300">' + esc(item.username) + '</a>' +
+                          '<span class="text-neutral-500">·</span>' +
+                          '<span class="text-xs text-neutral-500">' + fmtDate(item.created_at) + '</span>' +
+                        '</div>' +
+                        '<a href="/spirit/' + encodeURIComponent(item.spirit_id) + '" class="block text-lg font-display text-wine-300 hover:text-wine-200 mt-1">' + esc(item.display) + '</a>' +
+                        '<div class="flex items-center gap-2 mt-1 text-sm">' +
+                          '<span class="text-yellow-500">' + stars(item.rating) + '</span>' +
+                          '<span class="text-neutral-400 capitalize">' + esc(item.spirit_type) + '</span>' +
+                        '</div>' +
+                        (item.notes ? '<p class="text-sm text-neutral-400 mt-2 italic">"' + esc(item.notes) + '"</p>' : '') +
+                      '</div>' +
+                    '</div>' +
+                  '</div>';
+            }).join('');
+        })
+        .catch(function () { container.innerHTML = '<div class="text-center py-8 text-neutral-500">Could not load.</div>'; });
+})();
+</script>
+{% endblock %}

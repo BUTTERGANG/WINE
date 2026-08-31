@@ -26,6 +26,7 @@ class User(Base):
 
     # Relationships
     tasting_notes = relationship("TastingNote", back_populates="user", lazy="select")
+    spirit_tasting_notes = relationship("SpiritTastingNote", back_populates="user", lazy="select")
     followed = relationship(
         "Follow",
         foreign_keys="Follow.follower_id",

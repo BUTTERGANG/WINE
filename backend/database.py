@@ -59,7 +59,7 @@ async def _apply_additive_migrations(conn):
 
 async def init_db():
     """Create all tables, then apply additive column migrations."""
-    from backend.models import wine, location, user, community  # noqa: F401 — register models
+    from backend.models import wine, location, user, community, spirit  # noqa: F401 — register models
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

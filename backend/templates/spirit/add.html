@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Log a Spirit{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-8 pb-28" data-animate>
+    <h1 class="text-2xl font-display mb-1">🥃 Log a spirit</h1>
+    <p class="text-neutral-400 text-sm mb-6">Whiskey, bourbon, scotch, rye — whatever's in your glass.</p>
+
+    {% if not user %}
+    <div class="bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg px-4 py-3 text-sm mb-4">
+        You must <a href="/api/auth/login" class="underline">log in</a> to save a tasting.
+    </div>
+    {% endif %}
+
+    <form id="spirit-form" class="space-y-6" hx-post="/api/spirits" hx-target="#form-result" hx-swap="innerHTML">
+        <div id="form-error" class="hidden bg-red-900/30 border border-red-700 text-red-300 rounded-lg px-4 py-2 text-sm"></div>
+        <div id="form-result"></div>
+
+        <!-- 1 · What are you drinking? -->
+        <div>
+            <label class="block text-sm font-medium text-neutral-200 mb-2">What are you drinking?</label>
+            <div class="grid grid-cols-2 gap-3">
+                <input type="text" name="producer" placeholder="Producer (e.g. Buffalo Trace)" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none">
+                <input type="text" name="name" placeholder="Name (e.g. Eagle Rare 10)" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <input type="text" name="age_statement" placeholder="Age (e.g. 12, NAS)" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none">
+                <select name="spirit_type" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm">
+                    <option value="whiskey">Whiskey</option>
+                    <option value="bourbon">Bourbon</option>
+                    <option value="scotch">Scotch</option>
+                    <option value="rye">Rye</option>
+                    <option value="irish">Irish</option>
+                    <option value="japanese">Japanese</option>
+                    <option value="canadian">Canadian</option>
+                    <option value="gin">Gin</option>
+                    <option value="vodka">Vodka</option>
+                    <option value="rum">Rum</option>
+                    <option value="tequila">Tequila</option>
+                    <option value="brandy">Brandy</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <input type="text" name="region" placeholder="Region (e.g. Speyside)" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none">
+                <input type="number" name="abv" step="0.1" placeholder="ABV% (e.g. 46)" class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:border-wine-500 focus:outline-none">
+            </div>
+        </div>
+
+        <!-- 2 · Rating -->
+        <div>
+            <label class="block text-sm font-medium text-neutral-200 mb-2">Your rating</label>
+            <div class="flex gap-2" id="star-rating" role="radiogroup" aria-label="Rating out of 5">
+                {% for i in range(1, 6) %}
+                <span class="star" data-value="{{ i }}" role="radio" tabindex="0" aria-label="{{ i }} star{{ 's' if i != 1 }}" style="font-size:2.25rem">☆</span>
+                {% endfor %}
+                <input type="hidden" name="rating" id="rating-input" value="">
+            </div>
+            <p id="rating-hint" class="text-xs text-neutral-500 mt-1">Tap a star</p>
+        </div>
+
+        <!-- 3 · Tasting notes -->
+        <div class="border border-neutral-800 rounded-xl overflow-hidden">
+            <button type="button" class="disclosure w-full flex items-center justify-between px-4 py-3 text-sm text-neutral-200 hover:bg-neutral-900" aria-expanded="false" aria-controls="tasting-notes">
+                <span>＋ Tasting notes</span>
+                <span class="chev text-neutral-500">▾</span>
+            </button>
+            <div id="tasting-notes" class="px-4 pb-4 space-y-4 border-t border-neutral-800" hidden>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label class="text-xs text-neutral-400" for="f-nose">Nose</label>
+                        <input id="f-nose" type="text" name="nose" placeholder="Vanilla, honey, oak" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-palate">Palate</label>
+                        <input id="f-palate" type="text" name="palate" placeholder="Rich, smooth, spicy" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-finish">Finish</label>
+                        <input id="f-finish" type="text" name="finish" placeholder="Long, warm, oaky" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-neutral-400" for="f-notes">Notes</label>
+                        <textarea id="f-notes" name="notes" rows="2" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm" placeholder="Quick thought…"></textarea></div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-body">Body</label>
+                        <select id="f-body" name="body" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="light">Light</option><option value="medium">Medium</option><option value="full">Full</option></select></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-sweetness">Sweetness</label>
+                        <select id="f-sweetness" name="sweetness" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="dry">Dry</option><option value="off-dry">Off-Dry</option><option value="sweet">Sweet</option></select></div>
+                    <div><label class="block text-xs text-neutral-400 mb-1" for="f-peat">Peat</label>
+                        <select id="f-peat" name="peat" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm"><option value="">–</option><option value="none">None</option><option value="light">Light</option><option value="medium">Medium</option><option value="heavy">Heavy</option></select></div>
+                </div>
+                <div>
+                    <input type="text" name="cask_type" placeholder="Cask type (e.g. ex-bourbon, sherry)" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 · Distillery / Location -->
+        <div class="border border-neutral-800 rounded-xl overflow-hidden">
+            <button type="button" class="disclosure w-full flex items-center justify-between px-4 py-3 text-sm text-neutral-200 hover:bg-neutral-900" aria-expanded="false" aria-controls="distillery-info">
+                <span>➕ Distillery / location</span>
+                <span class="chev text-neutral-500">▾</span>
+            </button>
+            <div id="distillery-info" class="px-4 pb-4 space-y-3 border-t border-neutral-800" hidden>
+                <input type="text" name="distillery_name" placeholder="Distillery name" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+                <input type="text" name="country" placeholder="Country" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+        </div>
+
+        <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_public" value="1" checked class="rounded border-neutral-700 bg-neutral-800">
+            <span class="text-sm text-neutral-300">Share with community</span>
+        </label>
+    </form>
+</div>
+
+<!-- Sticky save bar -->
+<div class="fixed bottom-0 inset-x-0 bg-neutral-950/95 backdrop-blur border-t border-neutral-800 p-3 z-[1050]">
+    <div class="max-w-xl mx-auto">
+        <button type="submit" form="spirit-form" id="submit-btn"
+            class="w-full bg-wine-600 hover:bg-wine-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition text-base">
+            🥃 Save tasting
+        </button>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Star rating
+    const stars = Array.from(document.querySelectorAll('.star'));
+    const ratingInput = document.getElementById('rating-input');
+    const ratingHint = document.getElementById('rating-hint');
+    function setRating(val) {
+        ratingInput.value = val;
+        ratingHint.textContent = ['', 'Nope', 'Meh', 'Solid', 'Really good', 'Outstanding'][val] || '';
+        stars.forEach(function (el) {
+            const v = parseInt(el.dataset.value);
+            el.textContent = v <= val ? '★' : '☆';
+        });
+    }
+    stars.forEach(function (el) {
+        el.addEventListener('click', function () { setRating(parseInt(el.dataset.value)); });
+        el.addEventListener('keydown', function (e) {
+            const v = parseInt(el.dataset.value);
+            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setRating(v); }
+            else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); const n = Math.min(5, v + 1); setRating(n); stars[n - 1].focus(); }
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.max(1, v - 1); setRating(n); stars[n - 1].focus(); }
+        });
+    });
+
+    // Disclosure sections
+    document.querySelectorAll('.disclosure').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const panel = document.getElementById(btn.getAttribute('aria-controls'));
+            const open = panel.hidden;
+            panel.hidden = !open;
+            btn.setAttribute('aria-expanded', String(open));
+            btn.querySelector('.chev').textContent = open ? '▴' : '▾';
+        });
+    });
+
+    // Submit
+    document.getElementById('spirit-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const errBox = document.getElementById('form-error');
+        errBox.classList.add('hidden');
+        if (!ratingInput.value) {
+            ratingHint.textContent = 'Tap a star to rate it';
+            ratingHint.classList.add('text-red-400');
+            return;
+        }
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true; btn.textContent = 'Saving…';
+        fetch('/api/spirits', { method: 'POST', body: new FormData(this) })
+            .then(async function (r) {
+                const data = await r.json().catch(() => ({}));
+                if (r.status === 401) { window.location.href = '/api/auth/login'; return; }
+                if (!r.ok) throw new Error(data.detail || 'Could not save.');
+                window.location.href = '/spirit/' + encodeURIComponent(data.spirit_id);
+            })
+            .catch(function (ex) {
+                errBox.textContent = ex.message; errBox.classList.remove('hidden');
+                btn.disabled = false; btn.textContent = '🥃 Save tasting';
+            });
+    });
+})();
+</script>
+{% endblock %}

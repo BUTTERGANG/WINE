@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Spirit Wishlist{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-1">🥃 Spirit Wishlist</h1>
+    <p class="text-neutral-500 text-sm mb-6">Spirits you want to try</p>
+
+    {% if not user %}
+    <div class="text-center py-16">
+        <div class="text-6xl mb-4">🥃</div>
+        <p class="text-neutral-500 mb-4">Log in to save spirits to your wishlist.</p>
+        <a href="/api/auth/login" class="bg-wine-600 hover:bg-wine-500 px-6 py-2.5 rounded-lg text-white font-medium transition">Log In</a>
+    </div>
+    {% else %}
+    <div id="wishlist-items" class="space-y-3">
+        <div class="text-neutral-500 text-center py-8">Loading wishlist...</div>
+    </div>
+    {% endif %}
+</div>
+<script>
+fetch('/api/spirits/wishlist')
+    .then(r => r.json())
+    .then(data => {
+        const items = data.items || [];
+        const container = document.getElementById('wishlist-items');
+        if (!items.length) {
+            container.innerHTML = '<div class="text-neutral-500 text-center py-8"><p>Nothing saved yet.</p></div>';
+            return;
+        }
+        container.innerHTML = items.map(item =>
+            '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
+                '<div class="flex items-start justify-between">' +
+                    '<div>' +
+                        '<a href="/spirit/' + item.spirit_id + '" class="text-lg font-semibold text-wine-300 hover:text-wine-200">' + item.display + '</a>' +
+                        '<div class="text-sm text-neutral-400 mt-1 capitalize">' + item.spirit_type + '</div>' +
+                    '</div>' +
+                    '<button onclick="removeFromWishlist(\'' + item.spirit_id + '\', this)" class="text-xs text-neutral-500 hover:text-red-400 transition px-2 py-1 rounded">✕ Remove</button>' +
+                '</div>' +
+            '</div>'
+        ).join('');
+    });
+
+function removeFromWishlist(spiritId, btn) {
+    fetch('/api/spirits/wishlist/' + spiritId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => { if (!data.saved) btn.closest('.mb-3').remove(); });
+}
+</script>
+{% endblock %}

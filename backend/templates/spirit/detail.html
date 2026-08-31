@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ spirit.display_name }}{% endblock %}
+{% block breadcrumbs %}
+<div class="max-w-3xl mx-auto px-4 pt-6">
+    <div class="breadcrumbs">
+        <a href="/">Home</a><span class="sep">·</span>
+        <a href="/spirit/feed">Spirits</a><span class="sep">·</span>
+        <span>{{ spirit.display_name }}</span>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 pb-8" data-animate>
+    <div class="bg-neutral-900 rounded-xl p-6 md:p-8 border border-neutral-800">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-display text-wine-300">{{ spirit.producer }}</h1>
+                <p class="text-xl text-neutral-300 mt-1">{{ spirit.name }}{% if spirit.age_statement %} ({{ spirit.age_statement }} yr){% endif %}</p>
+            </div>
+            {% if avg_rating %}
+            <div class="text-center flex-shrink-0">
+                <div class="text-3xl font-bold text-wine-400">{{ avg_rating }}</div>
+                <div class="text-yellow-500 text-lg">{{ '★' * avg_rating|round(0, 'floor')|int }}{{ '☆' * (5 - avg_rating|round(0, 'floor')|int) }}</div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-sm">
+            {% if spirit.region %}<div><span class="text-neutral-400">Region</span><br>{{ spirit.region }}</div>{% endif %}
+            {% if spirit.country %}<div><span class="text-neutral-400">Country</span><br>{{ spirit.country }}</div>{% endif %}
+            <div><span class="text-neutral-400">Type</span><br><span class="capitalize">{{ spirit.spirit_type }}</span></div>
+            {% if spirit.abv %}<div><span class="text-neutral-400">ABV</span><br>{{ spirit.abv }}%</div>{% endif %}
+            {% if spirit.cask_type %}<div><span class="text-neutral-400">Cask</span><br>{{ spirit.cask_type }}</div>{% endif %}
+        </div>
+        {% if spirit.description %}
+        <p class="text-neutral-400 mt-4 text-sm">{{ spirit.description }}</p>
+        {% endif %}
+        <div class="mt-6 flex flex-wrap gap-3">
+            <a href="/spirit/add" class="inline-block bg-wine-600 hover:bg-wine-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition">🥃 Log a tasting</a>
+            <button id="wishlist-btn" class="inline-block bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-medium px-4 py-2 rounded-lg border border-neutral-700 transition" onclick="toggleWishlist(this)">⭐ Save</button>
+        </div>
+    </div>
+
+    <h2 class="text-lg font-display mt-8 mb-4">Tasting Notes</h2>
+    <div id="reviews" class="space-y-3" data-reveal-list>
+        {% for note in spirit.tasting_notes %}
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
+                <span class="text-xs text-neutral-500">by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
+            </div>
+            {% if note.notes %}<p class="text-sm text-neutral-300">{{ note.notes }}</p>{% endif %}
+            {% if note.nose or note.palate or note.finish %}
+            <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-neutral-400">
+                {% if note.nose %}<div><span class="text-neutral-500">Nose:</span> {{ note.nose }}</div>{% endif %}
+                {% if note.palate %}<div><span class="text-neutral-500">Palate:</span> {{ note.palate }}</div>{% endif %}
+                {% if note.finish %}<div><span class="text-neutral-500">Finish:</span> {{ note.finish }}</div>{% endif %}
+            </div>
+            {% endif %}
+            {% if note.body or note.sweetness or note.peat %}
+            <div class="mt-2 flex flex-wrap gap-1">
+                {% if note.body %}<span class="bg-neutral-800 rounded px-2 py-0.5 text-xs text-neutral-300">Body: {{ note.body }}</span>{% endif %}
+                {% if note.sweetness %}<span class="bg-neutral-800 rounded px-2 py-0.5 text-xs text-neutral-300">Sweetness: {{ note.sweetness }}</span>{% endif %}
+                {% if note.peat %}<span class="bg-neutral-800 rounded px-2 py-0.5 text-xs text-neutral-300">Peat: {{ note.peat }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if note.distillery %}
+            <a href="/venue/{{ note.distillery.id }}" class="inline-flex items-center gap-1 bg-neutral-800 hover:bg-neutral-700 text-wine-300 px-3 py-1.5 rounded-lg text-xs font-medium transition mt-2">🥃 {{ note.distillery.name }} →</a>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="text-neutral-500 text-center py-8">No tasting notes yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleWishlist(btn) {
+    fetch('/api/spirits/wishlist/{{ spirit.id }}', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.saved) {
+                btn.textContent = '⭐ Saved';
+                btn.classList.add('text-wine-300', 'border-wine-500');
+                window.showToast('Saved to wishlist!', 'success');
+            } else {
+                btn.textContent = '⭐ Save';
+                btn.classList.remove('text-wine-300', 'border-wine-500');
+                window.showToast('Removed from wishlist', 'info');
+            }
+        });
+}
+fetch('/api/spirits/wishlist/{{ spirit.id }}/status')
+    .then(r => r.json())
+    .then(data => { if (data.saved) { const btn = document.getElementById('wishlist-btn'); btn.textContent = '⭐ Saved'; btn.classList.add('text-wine-300', 'border-wine-500'); } });
+</script>
+{% endblock %}

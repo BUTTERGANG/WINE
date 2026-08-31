@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Distilleries{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-1">🏭 Distilleries</h1>
+    <p class="text-sm text-neutral-500 mb-6">Explore distilleries from around the world</p>
+
+    <div class="relative mb-6">
+        <input type="text" id="dist-search" placeholder="Search distilleries by name..." autocomplete="off"
+            class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 pl-10 text-sm focus:border-wine-500 focus:outline-none"
+            oninput="searchDistilleries(this.value)">
+        <span class="absolute left-3 top-3 text-neutral-500">🔍</span>
+        <div id="dist-results" class="mt-2 space-y-2"></div>
+    </div>
+</div>
+<script>
+let searchTimer;
+function searchDistilleries(q) {
+    clearTimeout(searchTimer);
+    if (q.length < 2) { document.getElementById('dist-results').innerHTML = ''; return; }
+    searchTimer = setTimeout(() => {
+        fetch('/api/spirits/distilleries/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                const items = data.results || [];
+                const container = document.getElementById('dist-results');
+                if (!items.length) {
+                    container.innerHTML = '<div class="text-neutral-600 text-sm text-center py-4">No distilleries found.</div>';
+                    return;
+                }
+                container.innerHTML = items.map(d =>
+                    '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
+                        '<div class="font-medium text-wine-300">🥃 ' + d.name + '</div>' +
+                        (d.address ? '<div class="text-xs text-neutral-500 mt-1">' + d.address + '</div>' : '') +
+                        (d.website ? '<div class="text-xs text-neutral-500 mt-1">🔗 ' + d.website + '</div>' : '') +
+                        (d.spirit_types ? '<div class="text-xs text-wine-400 mt-1">' + d.spirit_types + '</div>' : '') +
+                    '</div>'
+                ).join('');
+            });
+    }, 300);
+}
+</script>
+{% endblock %}
