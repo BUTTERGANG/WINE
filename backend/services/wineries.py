@@ -239,6 +239,7 @@ async def search_local_wineries(db: AsyncSession, query: str = "", limit: int = 
                 Location.name.ilike(q),
                 Location.address.ilike(q),
                 Location.description.ilike(q),
+                Location.state_or_region.ilike(q),
             )
         )
 

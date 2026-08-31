@@ -3,7 +3,15 @@
 {% block content %}
 <div class="h-[calc(100vh-3.5rem)] relative">
     <!-- Overlay controls -->
-    <div class="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+    <div class="absolute top-4 left-4 right-14 sm:right-auto z-[1000] flex flex-col gap-2 sm:w-64">
+        <!-- Location search -->
+        <form onsubmit="flyToSearch(event)" class="relative">
+            <input type="text" id="map-search" autocomplete="off"
+                   placeholder="State, ZIP, region, or winery…"
+                   class="w-full bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:border-wine-500 focus:outline-none">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <div id="map-search-msg" class="hidden mt-1 px-2.5 py-1.5 bg-neutral-900/95 border border-neutral-700 rounded-lg text-[11px] text-neutral-400"></div>
+        </form>
         <!-- View mode -->
         <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
             <button id="filter-my" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
@@ -78,7 +86,8 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s || 
 function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
 
 function initMap() {
-    map = L.map('wine-map', { tap: true, touchZoom: true }).setView([40, -95], 4);
+    map = L.map('wine-map', { tap: true, touchZoom: true, zoomControl: false }).setView([40, -95], 4);
+    L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18,
@@ -87,11 +96,20 @@ function initMap() {
     markersLayer = L.layerGroup().addTo(map);
     clusterGroup = L.markerClusterGroup({
         chunkedLoading: true,
-        maxClusterRadius: 50,
+        maxClusterRadius: 45,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
-        disableClusteringAtZoom: 16,
+        disableClusteringAtZoom: 13,
+        iconCreateFunction: function (cluster) {
+            const n = cluster.getChildCount();
+            const size = n < 10 ? 32 : n < 100 ? 38 : 46;
+            return L.divIcon({
+                className: 'wine-cluster',
+                html: '<div><span>' + n + '</span></div>',
+                iconSize: [size, size],
+            });
+        },
     });
     map.addLayer(clusterGroup);
 
@@ -237,6 +255,11 @@ function loadWineries(center, radius) {
                     .addTo(markersLayer);
                 return;
             }
+            // Explain the cluster bubbles the first time they appear.
+            if (map.getZoom() < 13 && !sessionStorage.getItem('cluster-hint') && window.showToast) {
+                window.showToast('Numbered circles group nearby wineries — tap one (or zoom in) to see them individually', 'info');
+                sessionStorage.setItem('cluster-hint', '1');
+            }
             features.forEach(f => {
                 const coords = f.geometry.coordinates;
                 const p = f.properties;
@@ -264,6 +287,33 @@ function loadWineries(center, radius) {
         .catch(() => {
             if (window.showToast) window.showToast('Could not load wineries — try again', 'error');
         });
+}
+
+function flyToSearch(e) {
+    e.preventDefault();
+    const input = document.getElementById('map-search');
+    const msg = document.getElementById('map-search-msg');
+    const q = input.value.trim();
+    if (!q) return;
+    msg.textContent = 'Searching…';
+    msg.classList.remove('hidden');
+    fetch('/api/wineries/locate?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            if (!data.found) {
+                msg.textContent = 'No match for "' + q + '". Try a state, ZIP, or wine region.';
+                return;
+            }
+            // Searching for a place implies you want to see wineries there.
+            if (currentFilter !== 'wineries') toggleFilter('wineries');
+            map.setView([data.lat, data.lon], data.zoom);
+            loadPins('wineries');
+            msg.textContent = data.count
+                ? '📍 ' + data.label + ' — ' + data.count + ' winer' + (data.count === 1 ? 'y' : 'ies')
+                : '📍 ' + data.label;
+            setTimeout(() => msg.classList.add('hidden'), 4000);
+        })
+        .catch(() => { msg.textContent = 'Search failed — try again.'; });
 }
 
 function findNearMe() {

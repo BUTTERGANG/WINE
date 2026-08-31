@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,6 +20,7 @@ from backend.services.wineries import (
 )
 from backend.config import settings
 from backend.services.template import templates
+from backend.services.geo_lookup import resolve_state, zip_prefix_region, is_zip
 
 router = APIRouter(prefix="/api/wineries", tags=["wineries"])
 
@@ -93,6 +94,66 @@ async def search_wineries(
                 })
 
     return {"results": results}
+
+
+@router.get("/locate")
+async def locate_wineries(
+    q: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(get_db),
+):
+    """Resolve a search term (US state, ZIP code, wine region, or winery name)
+    to a map target so the client can fly there. Returns
+    {found, lat, lon, zoom, label, count}."""
+    q = q.strip()
+
+    # 1. US ZIP code — prefer a winery whose address carries that ZIP.
+    zip5 = is_zip(q)
+    if zip5:
+        rows = await db.execute(
+            select(Location.lat, Location.lon)
+            .where(Location.venue_type == "winery", Location.address.ilike(f"%{zip5}%"))
+            .limit(50)
+        )
+        pts = rows.all()
+        if pts:
+            lat = sum(p[0] for p in pts) / len(pts)
+            lon = sum(p[1] for p in pts) / len(pts)
+            return {"found": True, "lat": lat, "lon": lon, "zoom": 11,
+                    "label": f"ZIP {zip5}", "count": len(pts)}
+        region = zip_prefix_region(q)
+        if region:
+            _, lat, lon = region
+            return {"found": True, "lat": lat, "lon": lon, "zoom": 8,
+                    "label": f"ZIP {zip5} (approx.)", "count": 0}
+
+    # 2. US state by name or 2-letter abbreviation.
+    state = resolve_state(q)
+    if state:
+        abbr, lat, lon = state
+        cnt = await db.execute(
+            select(func.count()).select_from(Location).where(
+                Location.venue_type == "winery",
+                or_(Location.address.ilike(f"%, {abbr} %"), Location.address.ilike(f"%, {abbr}%")),
+            )
+        )
+        return {"found": True, "lat": lat, "lon": lon, "zoom": 6,
+                "label": abbr, "count": cnt.scalar() or 0}
+
+    # 3. Wine region / winery name — center on the matching wineries.
+    matches = await search_local_wineries(db, q, 100)
+    matches = [m for m in matches if m.lat is not None and m.lon is not None]
+    if matches:
+        lat = sum(m.lat for m in matches) / len(matches)
+        lon = sum(m.lon for m in matches) / len(matches)
+        spread = max(
+            (max(m.lat for m in matches) - min(m.lat for m in matches)),
+            (max(m.lon for m in matches) - min(m.lon for m in matches)),
+        )
+        zoom = 12 if spread < 0.15 else 10 if spread < 1 else 8 if spread < 5 else 6
+        return {"found": True, "lat": lat, "lon": lon, "zoom": zoom,
+                "label": q, "count": len(matches)}
+
+    return {"found": False, "label": q}
 
 
 @router.post("/import")
