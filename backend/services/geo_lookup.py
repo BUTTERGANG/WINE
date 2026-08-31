@@ -42,6 +42,69 @@ US_STATE_CENTROIDS: dict[str, tuple[float, float]] = {
     "WV": (38.491, -80.954), "WI": (44.268, -89.616), "WY": (42.756, -107.302),
 }
 
+US_STATE_ABBR_TO_NAME: dict[str, str] = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+    "DC": "District of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii",
+    "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island",
+    "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas",
+    "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington",
+    "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
+}
+
+# Approximate state bounding boxes: abbr -> (lat_min, lat_max, lon_min, lon_max).
+# Border regions can be misclassified; good enough to group wine regions.
+US_STATE_BOUNDS: dict[str, tuple[float, float, float, float]] = {
+    "AL": (30.14, 35.01, -88.48, -84.89), "AZ": (31.33, 37.01, -114.82, -109.04),
+    "AR": (33.00, 36.50, -94.62, -89.64), "CA": (32.53, 42.01, -124.48, -114.13),
+    "CO": (36.99, 41.01, -109.07, -102.04), "CT": (40.98, 42.05, -73.73, -71.79),
+    "DE": (38.45, 39.84, -75.79, -75.05), "DC": (38.79, 39.00, -77.12, -76.91),
+    "FL": (24.52, 31.00, -87.63, -80.03), "GA": (30.36, 35.00, -85.61, -80.84),
+    "HI": (18.91, 22.24, -160.25, -154.81), "ID": (41.99, 49.00, -117.24, -111.04),
+    "IL": (36.97, 42.51, -91.51, -87.02), "IN": (37.77, 41.76, -88.06, -84.78),
+    "IA": (40.38, 43.50, -96.64, -90.14), "KS": (36.99, 40.00, -102.05, -94.59),
+    "KY": (36.50, 39.15, -89.57, -81.96), "LA": (28.93, 33.02, -94.04, -88.82),
+    "ME": (43.06, 47.46, -71.08, -66.95), "MD": (37.91, 39.72, -79.49, -75.05),
+    "MA": (41.24, 42.89, -73.51, -69.93), "MI": (41.70, 48.19, -90.42, -82.41),
+    "MN": (43.50, 49.38, -97.24, -89.49), "MS": (30.17, 34.99, -91.66, -88.10),
+    "MO": (35.99, 40.61, -95.77, -89.10), "MT": (44.36, 49.00, -116.05, -104.04),
+    "NE": (39.99, 43.00, -104.05, -95.31), "NV": (35.00, 42.00, -120.01, -114.04),
+    "NH": (42.70, 45.31, -72.56, -70.61), "NJ": (38.93, 41.36, -75.56, -73.89),
+    "NM": (31.33, 37.00, -109.05, -103.00), "NY": (40.50, 45.01, -79.76, -71.86),
+    "NC": (33.84, 36.59, -84.32, -75.46), "ND": (45.94, 49.00, -104.05, -96.55),
+    "OH": (38.40, 42.32, -84.82, -80.52), "OK": (33.62, 37.00, -103.00, -94.43),
+    "OR": (41.99, 46.29, -124.57, -116.46), "PA": (39.72, 42.27, -80.52, -74.69),
+    "RI": (41.15, 42.02, -71.86, -71.12), "SC": (32.03, 35.22, -83.35, -78.54),
+    "SD": (42.48, 45.95, -104.06, -96.44), "TN": (34.98, 36.68, -90.31, -81.65),
+    "TX": (25.84, 36.50, -106.65, -93.51), "UT": (36.99, 42.00, -114.05, -109.04),
+    "VT": (42.73, 45.02, -73.44, -71.46), "VA": (36.54, 39.47, -83.68, -75.24),
+    "WA": (45.54, 49.00, -124.85, -116.92), "WV": (37.20, 40.64, -82.64, -77.72),
+    "WI": (42.49, 47.31, -92.89, -86.81), "WY": (40.99, 45.01, -111.06, -104.05),
+}
+
+
+def state_for_point(lat: float | None, lon: float | None) -> str | None:
+    """Return the state abbr whose bounding box best contains the point.
+
+    Ties broken by the smallest box (more specific)."""
+    if lat is None or lon is None:
+        return None
+    best: str | None = None
+    best_area = 1e9
+    for abbr, (la0, la1, lo0, lo1) in US_STATE_BOUNDS.items():
+        if la0 <= lat <= la1 and lo0 <= lon <= lo1:
+            area = (la1 - la0) * (lo1 - lo0)
+            if area < best_area:
+                best, best_area = abbr, area
+    return best
+
+
 US_STATE_NAMES: dict[str, str] = {
     "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
     "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE",

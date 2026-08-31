@@ -11,6 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.config import settings
 from backend.models.location import Location
 from backend.models.wine import TastingNote
+from backend.services.geo_lookup import (
+    US_STATE_BOUNDS,
+    US_STATE_ABBR_TO_NAME,
+    state_for_point,
+)
 
 
 GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1"
@@ -235,14 +240,15 @@ async def search_local_wineries(
     limit: int = 30,
     *,
     region: str = "",
+    state: str = "",
     has_tastings: bool = False,
     sort: str = "name",
 ) -> list[Location]:
     """Search wineries already in the local DB.
 
-    Filters: ``region`` (exact match on state_or_region), ``has_tastings``
-    (only wineries with community tasting notes). ``sort`` is "name" or
-    "tastings".
+    Filters: ``region`` (exact match on state_or_region), ``state`` (2-letter
+    abbr — bounding-box match on lat/lon), ``has_tastings`` (only wineries with
+    community tasting notes). ``sort`` is "name" or "tastings".
     """
     tn_count = (
         select(func.count(TastingNote.id))
@@ -266,6 +272,18 @@ async def search_local_wineries(
 
     if region:
         stmt = stmt.where(Location.state_or_region == region)
+    elif state and state.upper() in US_STATE_BOUNDS:
+        abbr = state.upper()
+        # Prefer the wine regions that resolve to this state (border-safe);
+        # fall back to a raw bounding box if none are known.
+        regions = [r["region"] for r in await list_winery_regions(db) if r["state"] == abbr]
+        if regions:
+            stmt = stmt.where(Location.state_or_region.in_(regions))
+        else:
+            la0, la1, lo0, lo1 = US_STATE_BOUNDS[abbr]
+            stmt = stmt.where(
+                Location.lat.between(la0, la1), Location.lon.between(lo0, lo1)
+            )
 
     if has_tastings:
         stmt = stmt.where(tn_count > 0)
@@ -281,14 +299,32 @@ async def search_local_wineries(
 
 
 async def list_winery_regions(db: AsyncSession) -> list[dict]:
-    """Distinct wine regions with a winery count, for filter dropdowns."""
+    """Distinct wine regions with a winery count and their US state (derived
+    from the regions' average coordinates), for grouped filter dropdowns."""
     rows = await db.execute(
-        select(Location.state_or_region, func.count())
+        select(
+            Location.state_or_region,
+            func.count(),
+            func.avg(Location.lat),
+            func.avg(Location.lon),
+        )
         .where(Location.venue_type == "winery", Location.state_or_region != "")
         .group_by(Location.state_or_region)
         .order_by(Location.state_or_region)
     )
-    return [{"region": r, "count": n} for r, n in rows.all()]
+    out = []
+    for region, n, avg_lat, avg_lon in rows.all():
+        abbr = state_for_point(
+            float(avg_lat) if avg_lat is not None else None,
+            float(avg_lon) if avg_lon is not None else None,
+        )
+        out.append({
+            "region": region,
+            "count": n,
+            "state": abbr or "",
+            "state_name": US_STATE_ABBR_TO_NAME.get(abbr, "Other") if abbr else "Other",
+        })
+    return out
 
 
 async def import_wineries_to_db(

@@ -40,6 +40,7 @@ async def search_wineries(
     lon: float = Query(None),
     radius: int = Query(100),
     region: str = Query(""),
+    state: str = Query(""),
     has_tastings: bool = Query(False),
     sort: str = Query("name"),
     db: AsyncSession = Depends(get_db),
@@ -49,12 +50,12 @@ async def search_wineries(
     # Ensure radius is within bounds
     radius = min(max(radius, 10), 500)
 
-    has_filters = bool(region or has_tastings)
+    has_filters = bool(region or state or has_tastings)
     limit = 60 if has_filters else 20
 
     # Local first
     local = await search_local_wineries(
-        db, q, limit, region=region, has_tastings=has_tastings, sort=sort
+        db, q, limit, region=region, state=state, has_tastings=has_tastings, sort=sort
     )
 
     # Tasting counts in one grouped query (avoids N+1).

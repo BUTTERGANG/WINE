@@ -25,6 +25,10 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mt-3">
+            <select id="filter-state" onchange="onStateChange()"
+                class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-neutral-300 focus:border-wine-500 focus:outline-none">
+                <option value="">All states</option>
+            </select>
             <select id="filter-region" onchange="runSearch()"
                 class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-neutral-300 focus:border-wine-500 focus:outline-none">
                 <option value="">All wine regions</option>
@@ -77,23 +81,84 @@
 let searchTimer;
 const esc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; };
 
-// Populate the region dropdown once.
+let ALL_REGIONS = [];
+
+// Load regions once, then build the state + region dropdowns.
 fetch('/api/wineries/regions')
     .then(r => r.json())
     .then(data => {
-        const sel = document.getElementById('filter-region');
-        (data.regions || []).forEach(r => {
-            const o = document.createElement('option');
-            o.value = r.region;
-            o.textContent = `${r.region} (${r.count})`;
-            sel.appendChild(o);
+        ALL_REGIONS = data.regions || [];
+
+        // State dropdown — states that actually have regions, by region count.
+        const byState = {};
+        ALL_REGIONS.forEach(r => {
+            const key = r.state_name || 'Other';
+            byState[key] = byState[key] || { name: key, abbr: r.state, regions: 0, wineries: 0 };
+            byState[key].regions++;
+            byState[key].wineries += r.count;
         });
+        const stateSel = document.getElementById('filter-state');
+        Object.values(byState)
+            .sort((a, b) => b.wineries - a.wineries)
+            .forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.abbr || ('name:' + s.name);
+                o.textContent = `${s.name} · ${s.wineries} wineries`;
+                stateSel.appendChild(o);
+            });
+
+        rebuildRegionOptions();
     })
     .catch(() => {});
 
+function rebuildRegionOptions() {
+    const stateVal = document.getElementById('filter-state').value;
+    const sel = document.getElementById('filter-region');
+    const prev = sel.value;
+    let regions = ALL_REGIONS;
+    if (stateVal) {
+        regions = stateVal.startsWith('name:')
+            ? ALL_REGIONS.filter(r => (r.state_name || 'Other') === stateVal.slice(5))
+            : ALL_REGIONS.filter(r => r.state === stateVal);
+    }
+    sel.innerHTML = '<option value="">'
+        + (stateVal ? 'All regions in this state' : 'All wine regions')
+        + '</option>';
+
+    if (!stateVal) {
+        // Group everything under state optgroups when no state is picked.
+        const groups = {};
+        regions.forEach(r => { (groups[r.state_name || 'Other'] ||= []).push(r); });
+        Object.keys(groups).sort().forEach(gname => {
+            const og = document.createElement('optgroup');
+            og.label = gname;
+            groups[gname].forEach(r => og.appendChild(regionOption(r)));
+            sel.appendChild(og);
+        });
+    } else {
+        regions.forEach(r => sel.appendChild(regionOption(r)));
+    }
+    // Keep the selection if it's still valid.
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+function regionOption(r) {
+    const o = document.createElement('option');
+    o.value = r.region;
+    o.textContent = `${r.region} (${r.count})`;
+    return o;
+}
+
+function onStateChange() {
+    rebuildRegionOptions();
+    runSearch();
+}
+
 function currentFilters() {
+    const stateVal = document.getElementById('filter-state').value;
     return {
         q: document.getElementById('winery-search').value.trim(),
+        state: stateVal.startsWith('name:') ? '' : stateVal,
         region: document.getElementById('filter-region').value,
         sort: document.getElementById('filter-sort').value,
         tastings: document.getElementById('filter-tastings').checked,
@@ -103,8 +168,10 @@ function currentFilters() {
 function runSearch() {
     clearTimeout(searchTimer);
     const f = currentFilters();
-    const active = f.q || f.region || f.tastings;
-    document.getElementById('filter-clear').classList.toggle('hidden', !(f.region || f.tastings || f.sort !== 'name'));
+    const stateVal = document.getElementById('filter-state').value;
+    const active = f.q || f.region || f.state || stateVal || f.tastings;
+    document.getElementById('filter-clear').classList.toggle('hidden',
+        !(stateVal || f.region || f.tastings || f.sort !== 'name'));
 
     const results = document.getElementById('winery-results');
     const countEl = document.getElementById('winery-count');
@@ -118,6 +185,7 @@ function runSearch() {
         const params = new URLSearchParams();
         if (f.q) params.set('q', f.q);
         if (f.region) params.set('region', f.region);
+        else if (f.state) params.set('state', f.state);
         if (f.tastings) params.set('has_tastings', 'true');
         params.set('sort', f.sort);
 
@@ -125,9 +193,13 @@ function runSearch() {
             .then(r => r.json())
             .then(data => {
                 const items = data.results || [];
+                const where = f.region
+                    ? ` in ${f.region}`
+                    : (stateVal && !stateVal.startsWith('name:')
+                        ? ` in ${document.getElementById('filter-state').selectedOptions[0].textContent.split(' · ')[0]}`
+                        : '');
                 countEl.textContent = items.length
-                    ? `${items.length}${items.length === 60 ? '+' : ''} winer${items.length === 1 ? 'y' : 'ies'}`
-                      + (f.region ? ` in ${f.region}` : '')
+                    ? `${items.length}${items.length === 60 ? '+' : ''} winer${items.length === 1 ? 'y' : 'ies'}` + where
                     : '';
                 countEl.classList.toggle('hidden', !items.length);
 
@@ -160,9 +232,11 @@ function runSearch() {
 }
 
 function clearFilters() {
-    document.getElementById('filter-region').value = '';
+    document.getElementById('filter-state').value = '';
     document.getElementById('filter-sort').value = 'name';
     document.getElementById('filter-tastings').checked = false;
+    rebuildRegionOptions();
+    document.getElementById('filter-region').value = '';
     runSearch();
 }
 
