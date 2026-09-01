@@ -3,14 +3,16 @@
 Sources:
 1. WhiskeyFYI API — ~130 global distilleries, free, no key
 2. OpenStreetMap Overpass — unlimited, ODbL license
-3. Winery enrichment restart (background)
 
 Usage:
     python scripts/seed_free_distilleries.py
     python scripts/seed_free_distilleries.py --source whiskeyfyi
+    python scripts/seed_free_distilleries.py --source overpass
 """
 
 import asyncio
+import json
+import subprocess
 import sys
 import httpx
 from pathlib import Path
@@ -20,8 +22,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from backend.database import init_db, async_session
 from backend.models.spirit import Distillery
 from sqlalchemy import select, func
-
-ROOT = Path(__file__).resolve().parent.parent
 
 
 async def import_whiskeyfyi():
@@ -64,19 +64,13 @@ async def import_whiskeyfyi():
             if existing.first() is not None:
                 skipped += 1
                 continue
-            country = d.get("country_name") or ""
-            region = d.get("region_name") or ""
-            founded = d.get("founded_year")
-            try:
-                founded = int(founded) if founded else None
-            except (ValueError, TypeError):
-                founded = None
             dist = Distillery(
-                name=name, state_or_region=region, country=country,
+                name=name,
+                state_or_region=d.get("region_name") or "",
+                country=d.get("country_name") or "",
                 website=d.get("website", "") or "",
                 lat=39.8, lon=-98.5, venue_type="distillery",
                 description=(d.get("description") or "")[:500],
-                founded_year=founded,
             )
             s.add(dist)
             created += 1
@@ -86,8 +80,38 @@ async def import_whiskeyfyi():
         print(f"   ✅ Created: {created}, Skipped: {skipped}, Total: {total}")
 
 
+def _overpass_query(region_name: str, lat_min: float, lon_min: float, lat_max: float, lon_max: float) -> list[dict]:
+    """Query Overpass API via subprocess (curl — httpx sends wrong content-type)."""
+    query = f"""[out:json];(
+        node["industrial"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+        node["craft"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+        node["man_made"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+    );out center;"""
+    
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-X", "POST", "https://overpass-api.de/api/interpreter",
+             "--data-urlencode", f"data={query}"],
+            capture_output=True, text=True, timeout=45,
+        )
+        if result.returncode != 0 or not result.stdout:
+            print(f"   {region_name}: curl failed (exit {result.returncode})")
+            return []
+        
+        data = json.loads(result.stdout)
+        elements = data.get("elements", [])
+        print(f"   {region_name}: {len(elements)} distilleries")
+        return elements
+    except subprocess.TimeoutExpired:
+        print(f"   {region_name}: timeout")
+        return []
+    except json.JSONDecodeError as e:
+        print(f"   {region_name}: parse error - {e}")
+        return []
+
+
 async def import_overpass():
-    """Query OSM Overpass for distilleries worldwide."""
+    """Query OSM Overpass for distilleries worldwide using subprocess curl."""
     print("🌍 Querying OSM Overpass for distilleries...")
 
     regions = [
@@ -99,31 +123,11 @@ async def import_overpass():
         ("Oceania", -45, 110, -10, 180),
     ]
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        all_features = []
-        for name, lat_min, lon_min, lat_max, lon_max in regions:
-            query = f"""
-            [out:json];
-            (
-                node["industrial"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-                node["craft"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-                node["man_made"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-            );
-            out center;
-            """
-            try:
-                resp = await client.post(
-                    "https://overpass-api.de/api/interpreter",
-                    data={"data": query}, timeout=30,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    features = data.get("elements", [])
-                    print(f"   {name}: {len(features)}")
-                    all_features.extend(features)
-            except Exception as e:
-                print(f"   {name}: {e}")
-            await asyncio.sleep(2)
+    all_features = []
+    for name, lat_min, lon_min, lat_max, lon_max in regions:
+        features = _overpass_query(name, lat_min, lon_min, lat_max, lon_max)
+        all_features.extend(features)
+        await asyncio.sleep(2)
 
     print(f"   Total from OSM: {len(all_features)}")
 
@@ -140,14 +144,12 @@ async def import_overpass():
             lon = elem.get("lon") or (elem.get("center") or {}).get("lon") or 0
             if lat == 0:
                 continue
-
             existing = await s.execute(
                 select(Distillery.id).where(Distillery.name.ilike(name))
             )
             if existing.first() is not None:
                 skipped += 1
                 continue
-
             dist = Distillery(
                 name=name, lat=lat, lon=lon, venue_type="distillery",
                 website=tags.get("website", "") or "",
