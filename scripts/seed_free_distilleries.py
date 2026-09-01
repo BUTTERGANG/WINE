@@ -102,14 +102,12 @@ async def import_overpass():
     async with httpx.AsyncClient(timeout=30) as client:
         all_features = []
         for name, lat_min, lon_min, lat_max, lon_max in regions:
-            # Use name-based search + industrial tag for better coverage
             query = f"""
             [out:json];
             (
-                nwr["industrial"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-                nwr["craft"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-                nwr["man_made"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
-                nwr["name"~"Distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+                node["industrial"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+                node["craft"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
+                node["man_made"="distillery"]({lat_min},{lon_min},{lat_max},{lon_max});
             );
             out center;
             """
