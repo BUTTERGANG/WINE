@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from backend.config import settings
 from backend.database import get_db
 from backend.models.spirit import Spirit, SpiritTastingNote, Distillery, SpiritWishlistEntry
+from backend.models.community import GroupMember
 from backend.models.user import User
 from backend.services.auth import get_current_user
 from backend.services.template import templates
@@ -156,6 +157,45 @@ async def get_spirit_detail(spirit_id: str, request: Request, db: AsyncSession =
         "request": request, "user": user, "spirit": spirit,
         "avg_rating": avg_rating,
     })
+
+
+# ── Spirit Groups Feed ──────────────────────────────────────────
+
+
+@router.get("/feed/groups")
+async def spirit_group_feed(
+    group_id: str = Query(...),
+    limit: int = 30,
+    db: AsyncSession = Depends(get_db),
+):
+    """Spirit tasting notes from members of a group."""
+    # Get group members
+    result = await db.execute(
+        select(GroupMember.user_id).where(GroupMember.group_id == group_id)
+    )
+    member_ids = [row[0] for row in result.all()]
+    if not member_ids:
+        return {"items": []}
+
+    result = await db.execute(
+        select(SpiritTastingNote)
+        .options(selectinload(SpiritTastingNote.spirit), selectinload(SpiritTastingNote.user))
+        .where(SpiritTastingNote.is_public == True)
+        .where(SpiritTastingNote.user_id.in_(member_ids))
+        .order_by(SpiritTastingNote.created_at.desc())
+        .limit(limit)
+    )
+    notes = result.scalars().all()
+    return {"items": [{
+        "id": n.id, "spirit_id": n.spirit.id,
+        "display": n.spirit.display_name,
+        "spirit_type": n.spirit.spirit_type,
+        "rating": n.rating,
+        "username": n.user.display_name or n.user.username,
+        "user_id": n.user.id,
+        "notes": n.notes[:280] if n.notes else "",
+        "created_at": n.created_at.isoformat(),
+    } for n in notes]}
 
 
 # ── Distillery routes ─────────────────────────────────────────────

@@ -231,6 +231,13 @@ async def groups_list_page(request: Request, db: AsyncSession = Depends(get_db))
     return templates.TemplateResponse("community/groups.html", {"request": request, "user": user})
 
 
+@router.get("/spirit/groups", response_class=HTMLResponse)
+async def spirit_groups_list_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """List all public spirit groups."""
+    user = await get_current_user(request, db)
+    return templates.TemplateResponse("community/spirit_groups.html", {"request": request, "user": user})
+
+
 @router.get("/wineries", response_class=HTMLResponse)
 async def wineries_page(request: Request, db: AsyncSession = Depends(get_db)):
     """Discover and search wineries."""
@@ -240,7 +247,7 @@ async def wineries_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/group/{group_id}", response_class=HTMLResponse)
 async def group_detail_page(group_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Group detail page."""
+    """Group detail page (wine or spirits)."""
     result = await db.execute(select(Group).where(Group.id == group_id))
     group = result.scalar_one_or_none()
     if not group:
@@ -253,6 +260,27 @@ async def group_detail_page(group_id: str, request: Request, db: AsyncSession = 
     )).scalars().all()
 
     member_ids = [m.id for m in members]
+
+    is_member = bool(user and any(m.id == user.id for m in members))
+
+    if group.category == "spirits":
+        # Spirit tasting notes
+        from backend.models.spirit import SpiritTastingNote
+        snotes = []
+        if member_ids:
+            snotes = list((await db.execute(
+                select(SpiritTastingNote)
+                .options(selectinload(SpiritTastingNote.spirit), selectinload(SpiritTastingNote.user))
+                .where(SpiritTastingNote.user_id.in_(member_ids), SpiritTastingNote.is_public == True)
+                .order_by(SpiritTastingNote.created_at.desc()).limit(30)
+            )).scalars().all())
+        return templates.TemplateResponse(
+            "community/spirit_group_detail.html",
+            {"request": request, "group": group, "user": user,
+             "members": members, "notes": snotes, "is_member": is_member},
+        )
+
+    # Wine tasting notes
     notes = []
     if member_ids:
         notes = list((await db.execute(

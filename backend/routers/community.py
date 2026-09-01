@@ -211,15 +211,20 @@ async def create_group(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new wine group."""
+    """Create a new group (wine or spirits)."""
     user = await get_current_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     form = await request.form()
+    category = form.get("category", "wine")
+    if category not in ("wine", "spirits"):
+        category = "wine"
+
     group = Group(
         name=form.get("name", "New Group"),
         description=form.get("description", ""),
+        category=category,
         is_private=form.get("is_private", "0") == "1",
         owner_id=user.id,
     )
@@ -235,13 +240,13 @@ async def create_group(
     await db.commit()
 
     # Return the refreshed list so the UI can swap it in directly.
-    return {"ok": True, "id": group.id, "name": group.name, **await _list_public_groups(db)}
+    return {"ok": True, "id": group.id, "name": group.name, **await _list_public_groups(db, category=category)}
 
 
-async def _list_public_groups(db: AsyncSession, limit: int = 30) -> dict:
+async def _list_public_groups(db: AsyncSession, limit: int = 30, category: str = "wine") -> dict:
     stmt = (
         select(Group)
-        .where(Group.is_private == False)
+        .where(Group.is_private == False, Group.category == category)
         .order_by(Group.created_at.desc())
         .limit(limit)
     )
@@ -268,9 +273,10 @@ async def list_groups(
     request: Request,
     db: AsyncSession = Depends(get_db),
     limit: int = 30,
+    category: str = "wine",
 ):
-    """List public groups."""
-    return await _list_public_groups(db, limit)
+    """List public groups by category."""
+    return await _list_public_groups(db, limit, category)
 
 
 @router.post("/groups/{group_id}/join")

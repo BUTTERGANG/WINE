@@ -36,6 +36,9 @@ _ADDITIVE_COLUMNS = {
         ("phone", "VARCHAR(50) DEFAULT '' NOT NULL"),
         ("image_url", "VARCHAR(500) DEFAULT '' NOT NULL"),
     ],
+    "groups": [
+        ("category", "VARCHAR(20) DEFAULT 'wine' NOT NULL"),
+    ],
 }
 
 
