@@ -62,5 +62,9 @@ async def init_db():
     from backend.models import wine, location, user, community, spirit  # noqa: F401 — register models
 
     async with engine.begin() as conn:
+        # Enable WAL mode for concurrent read/write
+        if "sqlite" in settings.database_url:
+            await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
+            await conn.exec_driver_sql("PRAGMA busy_timeout=5000")
         await conn.run_sync(Base.metadata.create_all)
         await _apply_additive_migrations(conn)

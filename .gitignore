@@ -36,6 +36,8 @@ Thumbs.db
 *.db
 *.sqlite
 data/*.db
+data/*.db-shm
+data/*.db-wal
 data/*.sqlite
 data/__pycache__/
 logs/
