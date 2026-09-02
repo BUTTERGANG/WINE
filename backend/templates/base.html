@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}WINE{% endblock %} · WINE</title>
     <meta name="description" content="WINE — social wine tracking. Scan a bottle or a glass, pin every pour to a map, rate it, and see what your people are drinking.">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%B7%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="/static/brand/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/brand/icon.svg">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#111111">
+    <meta name="theme-color" content="#0b0a08">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="WINE">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,6 +30,19 @@
                             400: '#e98844', 500: '#e36a1f', 600: '#d45518', 700: '#b04116',
                             800: '#8d351b', 900: '#722e19', 950: '#3e150b',
                         },
+                        burgundy: {
+                            50: '#fdf2f4', 100: '#fce7ea', 200: '#f9d0d8', 300: '#f4a9b8',
+                            400: '#ec7892', 500: '#de4c6c', 600: '#cc2f54', 700: '#ab2143',
+                            800: '#8b1d3a', 900: '#6b1d2c', 950: '#3d0a16',
+                        },
+                        gold: {
+                            50: '#fdfaed', 100: '#f9f0cb', 200: '#f3e093', 300: '#eccb5a',
+                            400: '#e5b530', 500: '#d59d20', 600: '#c99a3b', 700: '#a0762d',
+                            800: '#825d2a', 900: '#6b4c26', 950: '#3d2a12',
+                        },
+                    },
+                    backgroundImage: {
+                        'premium-glow': 'radial-gradient(120% 55% at 50% -8%, rgba(227, 106, 31, 0.10), transparent 62%)',
                     },
                 }
             }
@@ -223,8 +237,27 @@
     <nav class="sticky top-0 z-[1100] border-b border-neutral-800 bg-neutral-950/70 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center gap-3 h-14">
-                <a href="/" class="flex items-center gap-2 text-xl font-display text-wine-400 hover:text-wine-300 shrink-0" style="view-transition-name:brand">
-                    <span>🍷</span><span class="hidden sm:inline">WINE</span>
+                <a href="/" class="flex items-center gap-2 text-xl font-display text-wine-400 hover:text-wine-300 shrink-0 group" style="view-transition-name:brand">
+                    <svg class="w-7 h-7 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="brandGlass" x1="60" y1="160" x2="60" y2="0">
+                                <stop offset="0%" stop-color="#e98844" stop-opacity="0.15"/>
+                                <stop offset="40%" stop-color="#e98844" stop-opacity="0.35"/>
+                                <stop offset="70%" stop-color="#d45518" stop-opacity="0.55"/>
+                                <stop offset="100%" stop-color="#d45518" stop-opacity="0.8"/>
+                            </linearGradient>
+                            <linearGradient id="brandGlow" x1="60" y1="0" x2="60" y2="50">
+                                <stop offset="0%" stop-color="#f6cfaa" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#e98844" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M30 28C30 28 22 68 28 100C30 112 36 118 60 120C84 118 90 112 92 100C98 68 90 28 90 28" fill="url(#brandGlass)" stroke="#e98844" stroke-width="1.5" stroke-opacity="0.5"/>
+                        <ellipse cx="60" cy="34" rx="26" ry="5" fill="url(#brandGlow)" opacity="0.5"/>
+                        <path d="M38 34C38 34 35 60 38 85" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.25"/>
+                        <line x1="60" y1="120" x2="60" y2="148" stroke="#e98844" stroke-width="2.5" stroke-opacity="0.5"/>
+                        <ellipse cx="60" cy="152" rx="24" ry="3" fill="#e98844" fill-opacity="0.25" stroke="#e98844" stroke-width="1" stroke-opacity="0.35"/>
+                    </svg>
+                    <span class="hidden sm:inline">WINE</span>
                 </a>
 
                 <!-- Primary nav (lg+) -->
@@ -339,7 +372,14 @@
                 <!-- overlay header: brand + close, aligned to the nav bar -->
                 <div class="flex items-center justify-between h-14 px-4 sm:px-6 shrink-0">
                     <a href="/" class="flex items-center gap-2 text-xl font-display text-wine-400">
-                        <span>🍷</span><span>WINE</span>
+                    <svg class="w-6 h-6" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M30 28C30 28 22 68 28 100C30 112 36 118 60 120C84 118 90 112 92 100C98 68 90 28 90 28" fill="url(#brandGlass)" stroke="#e98844" stroke-width="1.5" stroke-opacity="0.5"/>
+                        <ellipse cx="60" cy="34" rx="26" ry="5" fill="url(#brandGlow)" opacity="0.5"/>
+                        <path d="M38 34C38 34 35 60 38 85" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.25"/>
+                        <line x1="60" y1="120" x2="60" y2="148" stroke="#e98844" stroke-width="2.5" stroke-opacity="0.5"/>
+                        <ellipse cx="60" cy="152" rx="24" ry="3" fill="#e98844" fill-opacity="0.25" stroke="#e98844" stroke-width="1" stroke-opacity="0.35"/>
+                    </svg>
+                    <span>WINE</span>
                     </a>
                     <button id="nav-close" class="p-2 -mr-2 text-neutral-300 hover:text-white" aria-label="Close navigation">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -416,8 +456,18 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-neutral-800 py-4 text-center text-xs text-neutral-500">
-        🍷 WINE · Built by BUTTERGANG
+    <footer class="border-t border-neutral-800/50 py-8 text-center">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-center gap-2 text-sm text-neutral-600 mb-2">
+                <svg class="w-4 h-4 opacity-40" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M30 28C30 28 22 68 28 100C30 112 36 118 60 120C84 118 90 112 92 100C98 68 90 28 90 28" fill="#e98844" fill-opacity="0.3" stroke="#e98844" stroke-width="1.5" stroke-opacity="0.3"/>
+                    <line x1="60" y1="120" x2="60" y2="148" stroke="#e98844" stroke-width="2.5" stroke-opacity="0.3"/>
+                    <ellipse cx="60" cy="152" rx="24" ry="3" fill="#e98844" fill-opacity="0.15" stroke="#e98844" stroke-width="1" stroke-opacity="0.2"/>
+                </svg>
+                <span>WINE</span>
+            </div>
+            <p class="text-xs text-neutral-600">Built by BUTTERGANG</p>
+        </div>
     </footer>
 
     <script>
