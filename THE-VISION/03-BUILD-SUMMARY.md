@@ -2,6 +2,13 @@
 
 ## Completed: All 3 Phases Build (2026-08-30)
 
+> **Note (2026-09-02):** This document is a snapshot of the initial 3-phase build.
+> Since then: spirits + distilleries, spirit groups, notifications, password reset,
+> rate limiting, venue enrichment, marker clustering, and a ~50K winery import have
+> shipped. The schema is now ~13 tables (adds `spirits`, `spirit_tasting_notes`,
+> `distilleries`, `spirit_wishlist_entries`, `wishlist_entries`, `notifications`).
+> See `CLAUDE.md` for the current feature and endpoint list.
+
 ---
 
 ## Phase 1 — Core Loop ("Snap, Sip, Pin")
