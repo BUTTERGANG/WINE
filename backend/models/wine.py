@@ -19,7 +19,7 @@ class Wine(Base):
     region: Mapped[str] = mapped_column(String(200), default="")
     country: Mapped[str] = mapped_column(String(100), default="")
     varietal: Mapped[str] = mapped_column(String(100), default="")  # e.g. Cabernet Sauvignon
-    wine_type: Mapped[str] = mapped_column(String(50), default="red")  # red, white, rosé, sparkling, fortified, dessert
+    wine_type: Mapped[str] = mapped_column(String(50), default="red", index=True)  # red, white, rosé, sparkling, fortified, dessert
     abv: Mapped[float | None] = mapped_column(Float, nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
     image_url: Mapped[str] = mapped_column(String(500), default="")

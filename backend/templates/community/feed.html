@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Feed{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-8" data-animate>
+<div class="max-w-4xl mx-auto px-4 py-8" data-animate>
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl font-display">🍷 Community Feed</h1>
@@ -17,11 +17,13 @@
         {% endif %}
     </div>
 
-    <div id="feed-page" data-reveal-list>
-        <div class="space-y-3">
-            <div class="skeleton skeleton-card"></div>
-            <div class="skeleton skeleton-card"></div>
-            <div class="skeleton skeleton-card"></div>
+    <div id="feed-page" class="grid grid-cols-2 md:grid-cols-3 gap-3" data-reveal-list>
+        <div class="col-span-full">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+            </div>
         </div>
     </div>
     <div id="feed-load-more" class="text-center mt-6 hidden">
@@ -33,7 +35,12 @@
 const feedContainer = document.getElementById('feed-page');
 let feedOffset = 0;
 let feedMode = 'global';
-const FEED_LIMIT = 20;
+const FEED_LIMIT = 12;
+
+function wineColor(type) {
+    var colors = { red: '#3e150b', white: '#2a2418', rosé: '#3d1f2e', sparkling: '#2a1f0e', fortified: '#2e1a0e', dessert: '#2e1a0e' };
+    return colors[type] || '#1a1714';
+}
 
 function switchFeed(mode) {
     feedMode = mode;
@@ -49,62 +56,60 @@ function loadFeed() {
     var url = (feedMode === 'personal' ? '/api/feed/personal?limit=' : '/api/feed?limit=') + FEED_LIMIT + '&offset=' + feedOffset;
     fetch(url)
         .then(function (r) { return r.json(); })
-        .then(function (d) { renderFeed(d.items || [], d.has_more); })
-        .catch(function () { feedContainer.innerHTML = '<div class="text-center py-8 text-neutral-500">Could not load the feed.</div>'; });
+        .then(function (d) {
+            var items = d.items || [];
+            if (feedOffset === 0 && !items.length) {
+                feedContainer.innerHTML = feedMode === 'personal'
+                    ? '<div class="empty-state col-span-full"><div class="icon">👥</div><h3>Nothing here yet</h3><p>Follow some people to see their tastings here.</p><a href="/feed" class="action" onclick="switchFeed(\'global\');return false">Browse global feed</a></div>'
+                    : '<div class="empty-state col-span-full"><div class="icon">🍷</div><h3>No tastings yet</h3><p>The community is just getting started. Be the first to log a wine!</p><a href="/wine/add" class="action">Log a wine</a></div>';
+                document.getElementById('feed-load-more').classList.add('hidden');
+                return;
+            }
+            if (feedOffset === 0) {
+                feedContainer.innerHTML = items.map(itemHtml).join('');
+            } else {
+                var frag = document.createDocumentFragment();
+                items.forEach(function (item) {
+                    var div = document.createElement('div');
+                    div.className = 'reveal-item';
+                    div.innerHTML = itemHtml(item);
+                    frag.appendChild(div);
+                });
+                feedContainer.appendChild(frag);
+            }
+            feedOffset += items.length;
+            document.getElementById('feed-load-more').classList.toggle('hidden', items.length < FEED_LIMIT);
+            revealChildren(feedContainer);
+        })
+        .catch(function () {
+            if (feedOffset === 0) {
+                feedContainer.innerHTML = '<div class="text-center py-8 text-neutral-500 col-span-full">Could not load the feed.</div>';
+            }
+        });
 }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
-function fmtDate(t) { try { return new Date(t).toLocaleDateString(); } catch(e) { return ''; } }
 
 function itemHtml(item) {
-    var photo = item.photo_url ? '<img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover border border-neutral-800 flex-shrink-0">' : '';
-    var loc = item.location_name
-        ? (item.location_id
-            ? '<a href="/venue/' + encodeURIComponent(item.location_id) + '" class="inline-flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-wine-300 hover:text-wine-200 px-3 py-1.5 rounded-lg text-sm font-medium transition mt-2">📍 ' + esc(item.location_name) + ' →</a>'
-            : '<span class="text-neutral-400 mt-1 block">📍 ' + esc(item.location_name) + '</span>')
+    var photoHTML = item.photo_url
+        ? '<div class="aspect-square rounded-lg overflow-hidden mb-2 cursor-zoom-in" onclick="openLightbox(\'' + esc(item.photo_url) + '\')"><img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-full h-full object-cover"></div>'
+        : '<div class="aspect-square rounded-lg mb-2 flex items-center justify-center text-3xl" style="background:' + wineColor(item.wine_type) + '">🍷</div>';
+    var locHTML = item.location_name
+        ? '<div class="mt-1 text-xs text-neutral-500 truncate">📍 ' + esc(item.location_name) + '</div>'
         : '';
-    var notes = item.notes ? '<p class="text-sm text-neutral-400 mt-2 italic">"' + esc(item.notes) + '"</p>' : '';
-    return '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition mb-3">' +
-        '<div class="flex items-start gap-3">' +
-          '<a href="/profile/' + encodeURIComponent(item.user_id) + '" class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-sm font-bold flex-shrink-0 hover:bg-wine-600 transition">' +
-            esc((item.username || '?').charAt(0).toUpperCase()) + '</a>' +
-          '<div class="flex-1 min-w-0">' +
-            '<div class="flex items-center gap-2">' +
-              '<a href="/profile/' + encodeURIComponent(item.user_id) + '" class="font-medium text-sm hover:text-wine-300">' + esc(item.username) + '</a>' +
-              '<span class="text-neutral-500">·</span>' +
-              '<span class="text-xs text-neutral-500">' + fmtDate(item.created_at) + '</span>' +
-            '</div>' +
-            '<div class="flex items-start gap-3 mt-1">' +
-              '<div class="flex-1 min-w-0">' +
-                '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="block text-lg font-display text-wine-300 hover:text-wine-200">' + esc(item.wine_name) + '</a>' +
-                '<div class="flex flex-wrap items-center gap-3 mt-1 text-sm">' +
-                  '<span class="text-yellow-500">' + stars(item.rating) + '</span>' +
-                '</div>' + notes + loc +
-              '</div>' + photo +
-            '</div>' +
-          '</div>' +
+    return '<div class="bg-neutral-900 rounded-xl border border-neutral-800 hover:border-neutral-700 transition overflow-hidden">' +
+        photoHTML +
+        '<div class="p-3">' +
+          '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="text-sm font-medium text-wine-300 hover:text-wine-200 truncate block">' + esc(item.wine_name) + '</a>' +
+          '<div class="flex items-center justify-between mt-0.5">' +
+            '<span class="text-xs text-neutral-500">by <a href="/profile/' + encodeURIComponent(item.user_id) + '" class="hover:text-wine-300">' + esc(item.username) + '</a></span>' +
+            '<span class="text-xs text-yellow-500">' + stars(item.rating) + '</span>' +
+          '</div>' + locHTML +
         '</div>' +
-      '</div>';
+    '</div>';
 }
 
-function renderFeed(items, hasMore) {
-    document.getElementById('feed-load-more').classList.toggle('hidden', !hasMore);
-    if (!items.length) {
-        feedContainer.innerHTML = feedMode === 'personal'
-            ? '<div class="empty-state"><div class="icon">👥</div><h3>Nothing here yet</h3><p>Follow some people to see their tastings here.</p><a href="/feed" class="action" onclick="switchFeed(\'global\');return false">Browse global feed</a></div>'
-            : '<div class="empty-state"><div class="icon">🍷</div><h3>No tastings yet</h3><p>The community is just getting started. Be the first to log a wine!</p><a href="/wine/add" class="action">Log a wine</a></div>';
-        return;
-    }
-    if (feedOffset === 0) {
-        feedContainer.innerHTML = items.map(itemHtml).join('');
-    } else {
-        items.forEach(function (item) { feedContainer.insertAdjacentHTML('beforeend', itemHtml(item)); });
-    }
-    feedOffset += items.length;
-}
-
-window.loadMoreFeed = function () { loadFeed(); };
-loadFeed();
+function loadMoreFeed() { loadFeed(); }
 </script>
 {% endblock %}

@@ -1,43 +1,98 @@
 {% extends "base.html" %}
 {% block title %}Distilleries{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4 py-8" data-animate>
     <h1 class="text-2xl font-bold mb-1">🏭 Distilleries</h1>
     <p class="text-sm text-neutral-500 mb-6">Explore distilleries from around the world</p>
 
-    <div class="relative mb-6">
-        <input type="text" id="dist-search" placeholder="Search distilleries by name..." autocomplete="off"
-            class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 pl-10 text-sm focus:border-wine-500 focus:outline-none"
-            oninput="searchDistilleries(this.value)">
-        <span class="absolute left-3 top-3 text-neutral-500">🔍</span>
-        <div id="dist-results" class="mt-2 space-y-2"></div>
+    <div class="grid md:grid-cols-2 gap-6">
+        <!-- Search + List -->
+        <div>
+            <div class="relative mb-4">
+                <input type="text" id="dist-search" placeholder="Search distilleries by name..." autocomplete="off"
+                    class="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 pl-10 text-sm focus:border-wine-500 focus:outline-none"
+                    oninput="searchDistilleries(this.value)">
+                <span class="absolute left-3 top-3 text-neutral-500">🔍</span>
+            </div>
+            <div id="dist-results" class="space-y-2"></div>
+        </div>
+
+        <!-- Map -->
+        <div id="dist-map" class="h-80 md:h-full min-h-[300px] rounded-xl overflow-hidden border border-neutral-800"></div>
     </div>
 </div>
 <script>
 let searchTimer;
+let distMap;
+let distMarkers = [];
+
+function initDistMap() {
+    if (distMap) return;
+    distMap = L.map('dist-map', {
+        zoomControl: true,
+        attributionControl: false,
+    }).setView([30, 0], 2);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(distMap);
+}
+
+function renderDistilleries(items) {
+    const container = document.getElementById('dist-results');
+    if (!items.length) {
+        container.innerHTML = '<div class="text-neutral-600 text-sm text-center py-4">No distilleries found.</div>';
+        return;
+    }
+    container.innerHTML = items.map(d =>
+        '<a href="/venue/' + encodeURIComponent(d.id) + '" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
+            '<div class="flex items-start justify-between">' +
+              '<div>' +
+                '<div class="font-medium text-wine-300">🥃 ' + esc(d.name) + '</div>' +
+                (d.address ? '<div class="text-xs text-neutral-500 mt-1">' + esc(d.address) + '</div>' : '') +
+                (d.spirit_types ? '<div class="text-xs text-wine-400 mt-1">' + esc(d.spirit_types) + '</div>' : '') +
+              '</div>' +
+              (d.website ? '<span class="text-xs text-neutral-500">🔗</span>' : '') +
+            '</div>' +
+        '</a>'
+    ).join('');
+
+    // Update map markers
+    distMap.eachLayer(function (layer) {
+        if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+            distMap.removeLayer(layer);
+        }
+    });
+
+    const bounds = [];
+    items.forEach(function (d) {
+        if (d.lat && d.lon) {
+            var icon = L.divIcon({ className: 'wine-pin', html: '<div></div>', iconSize: [20, 20], iconAnchor: [10, 20] });
+            L.marker([d.lat, d.lon], { icon: icon })
+                .bindPopup('<b>' + esc(d.name) + '</b>' +
+                           (d.address ? '<br>' + esc(d.address) : '') +
+                           '<br><a href="/venue/' + esc(d.id) + '" class="text-wine-400">View →</a>')
+                .addTo(distMap);
+            bounds.push([d.lat, d.lon]);
+        }
+    });
+
+    if (bounds.length) {
+        distMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+    }
+}
+
 function searchDistilleries(q) {
     clearTimeout(searchTimer);
-    if (q.length < 2) { document.getElementById('dist-results').innerHTML = ''; return; }
+    if (q.length < 2) {
+        document.getElementById('dist-results').innerHTML = '';
+        return;
+    }
     searchTimer = setTimeout(() => {
         fetch('/api/spirits/distilleries/search?q=' + encodeURIComponent(q))
             .then(r => r.json())
-            .then(data => {
-                const items = data.results || [];
-                const container = document.getElementById('dist-results');
-                if (!items.length) {
-                    container.innerHTML = '<div class="text-neutral-600 text-sm text-center py-4">No distilleries found.</div>';
-                    return;
-                }
-                container.innerHTML = items.map(d =>
-                    '<div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-neutral-700 transition">' +
-                        '<div class="font-medium text-wine-300">🥃 ' + d.name + '</div>' +
-                        (d.address ? '<div class="text-xs text-neutral-500 mt-1">' + d.address + '</div>' : '') +
-                        (d.website ? '<div class="text-xs text-neutral-500 mt-1">🔗 ' + d.website + '</div>' : '') +
-                        (d.spirit_types ? '<div class="text-xs text-wine-400 mt-1">' + d.spirit_types + '</div>' : '') +
-                    '</div>'
-                ).join('');
-            });
+            .then(data => renderDistilleries(data.results || []));
     }, 300);
 }
+
+initDistMap();
 </script>
 {% endblock %}

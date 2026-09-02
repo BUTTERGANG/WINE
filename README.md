@@ -28,11 +28,18 @@ The wine app market has 70M+ users across Vivino, CellarTracker, Wine-Searcher, 
 - **Manual entry** — type producer + vintage + region with live autocomplete search against the DB.
 - **Structured tasting notes** — WSET-inspired framework: appearance, nose, palate, finish, rating.
 
+### 🥃 Spirits & Distilleries
+- **Spirit logging** — whiskey, bourbon, scotch, rye, and more with nose/palate/finish notes, body, sweetness, and peat.
+- **Distillery database** — explore distilleries on a map, see their spirits and tasting history.
+- **Spirit feed** — global feed and group-based feed for spirit tastings.
+- **Spirit wishlist** — save spirits you want to try.
+
 ### 📍 Location Map
 - Every wine logged gets pinned to an **interactive OpenStreetMap** using Leaflet.js.
 - Filter your personal map by wine type, vintage, rating, region.
 - Browse a **global community map** — see what others are drinking at restaurants, wineries, homes.
 - Tag the specific venue (winery, restaurant, bar, friend's house) — make it a social record.
+- **Interactive home mini-map** — draggable, zoomable, clickable pins with wine details and "you are here" marker.
 
 ### 👥 Community
 - **Follow friends & tastemakers** — build a feed of what they're drinking.

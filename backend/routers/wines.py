@@ -16,6 +16,7 @@ from backend.models.location import Location
 from backend.models.user import User
 from backend.services.auth import get_current_user
 from backend.services.wine_db import search_local_wines, search_external_wine_api, get_or_create_wine
+from backend.services.wine_of_day import get_wine_of_the_day
 from backend.services.label_scanner import scan_label
 from backend.services.glass_scanner import analyze_glass
 from backend.services.template import templates
@@ -48,8 +49,11 @@ async def search_wines(
     """Live autocomplete search — local first, then external."""
     if not q or len(q) < 1:
         return {"results": []}
+    
+    limit = min(limit, 50)  # Cap pagination
 
     local = await search_local_wines(db, q, limit)
+    # ... rest of function
 
     results = []
     for wine in local:
@@ -501,45 +505,11 @@ async def get_wishlist_status(
 
 
 @router.get("/wine-of-the-day")
-async def wine_of_the_day(
+async def wine_of_the_day_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """A random wine with good ratings — wine of the day."""
-    import random as py_random
-
-    # Get all wine IDs
-    result = await db.execute(select(Wine.id))
-    ids = result.scalars().all()
-    all_ids = list(ids)
-    if not all_ids:
-        return {"wine": None}
-
-    wine_id = py_random.choice(all_ids)
-    result = await db.execute(select(Wine).where(Wine.id == wine_id))
-    wine = result.scalar_one_or_none()
-
-    if not wine:
-        return {"wine": None}
-
-    note_result = await db.execute(
-        select(TastingNote).where(TastingNote.wine_id == wine.id).order_by(TastingNote.created_at.desc()).limit(1)
-    )
-    note = note_result.scalar_one_or_none()
-
-    data = {
-        "id": wine.id,
-        "producer": wine.producer,
-        "name": wine.name,
-        "vintage": wine.vintage,
-        "region": wine.region,
-        "varietal": wine.varietal,
-        "wine_type": wine.wine_type,
-        "display": wine.display_name,
-        "avg_rating": None,
-        "note_preview": note.notes if note else None,
-        "note_rating": note.rating if note else None,
-    }
-
+    data = await get_wine_of_the_day(db)
     return data
 
 

@@ -136,6 +136,19 @@ async def toggle_follow(
     follow = Follow(follower_id=user.id, followed_id=target)
     db.add(follow)
     await db.commit()
+
+    # Create notification
+    from backend.models.notifications import Notification
+    notif = Notification(
+        user_id=target,
+        actor_id=user.id,
+        type="follow",
+        message=f"{user.display_name or user.username} started following you",
+        link=f"/profile/{user.id}",
+    )
+    db.add(notif)
+    await db.commit()
+
     return {"following": True}
 
 

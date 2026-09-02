@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="/static/css/app.css">
     <style>
         /* ── Toast system ── */
-        #toast-container { position:fixed; bottom:5rem; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; }
+        #toast-container { position:fixed; top:5rem; right:1rem; z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; max-width: 90vw; }
         .toast { pointer-events:auto; padding:0.625rem 1.25rem; border-radius:0.75rem; font-size:0.875rem; font-weight:500; box-shadow:0 8px 24px rgba(0,0,0,0.5); animation:toast-in 0.3s ease-out, toast-out 0.3s 2.7s ease-in forwards; backdrop-filter:blur(8px); }
         .toast-success { background:#166534cc; color:#bbf7d0; border:1px solid #22c55e; }
         .toast-error { background:#991b1bcc; color:#fecaca; border:1px solid #ef4444; }
@@ -131,6 +131,62 @@
             var m = document.getElementById('fab-menu');
             if (m) m.classList.toggle('show');
         };
+        window.openLightbox = function (src) {
+            var lb = document.getElementById('lightbox');
+            document.getElementById('lightbox-img').src = src;
+            lb.classList.remove('hidden');
+            lb.classList.add('flex');
+        };
+        window.wineColor = function (type) {
+            var colors = {
+                red: '#3e150b',
+                white: '#2a2418',
+                rosé: '#3d1f2e',
+                sparkling: '#2a1f0e',
+                fortified: '#2e1a0e',
+                dessert: '#2e1a0e'
+            };
+            return colors[type] || '#1a1714';
+        };
+
+        // Notifications
+        window.loadNotifications = function () {
+            fetch('/api/notifications?limit=10')
+                .then(r => r.json())
+                .then(data => {
+                    var list = document.getElementById('nav-notif-list');
+                    var badge = document.getElementById('nav-notif-badge');
+                    if (!list) return;
+                    
+                    if (data.unread > 0) {
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                    
+                    if (!data.items || !data.items.length) {
+                        list.innerHTML = '<div class="px-3 py-4 text-xs text-neutral-500 text-center">No notifications</div>';
+                        return;
+                    }
+                    
+                    list.innerHTML = data.items.map(n => 
+                        '<a href="' + esc(n.link) + '" class="block px-3 py-2 hover:bg-neutral-800 border-b border-neutral-800/50 ' + (n.is_read ? 'opacity-60' : '') + '">' +
+                            '<div class="text-xs text-neutral-200">' + esc(n.message) + '</div>' +
+                            '<div class="text-[10px] text-neutral-500 mt-0.5">' + new Date(n.created_at).toLocaleDateString() + '</div>' +
+                        '</a>'
+                    ).join('');
+                })
+                .catch(() => {});
+        };
+
+        window.markAllRead = function () {
+            fetch('/api/notifications/read-all', { method: 'POST' })
+                .then(() => loadNotifications());
+        };
+
+        // Poll notifications every 30s
+        setInterval(loadNotifications, 30000);
+        setTimeout(loadNotifications, 1000);
         // Close FAB menu when clicking outside
         document.addEventListener('click', function (e) {
             var btn = document.getElementById('fab-btn');
@@ -185,15 +241,19 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
                         </button>
                         <div data-dropdown-menu hidden
-                             class="absolute left-0 mt-1 w-44 py-1 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200]">
-                            {{ dropitem('/wine/scan', '📷  Scan bottle') }}
-                            {{ dropitem('/api/menu/scan', '📋  Scan menu') }}
-                            {{ dropitem('/spirit/add', '🥃  Log a spirit') }}
-                            {{ dropitem('/spirit/groups', '👥  Spirit Groups') }}
-                            {{ dropitem('/spirit/distilleries', '🏭  Distilleries') }}
-                            {{ dropitem('/spirit/wishlist', '🔖  Spirit wishlist') }}
-                            {{ dropitem('/wishlist', '🔖  Wishlist') }}
-                            {{ dropitem('/dashboard', '📊  Dashboard') }}
+                                 class="absolute left-0 mt-1 w-44 py-1 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200]">
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Wine</div>
+                                {{ dropitem('/wine/scan', '📷  Scan bottle') }}
+                                {{ dropitem('/api/menu/scan', '📋  Scan menu') }}
+                                {{ dropitem('/wishlist', '🔖  Wishlist') }}
+                                <div class="border-t border-neutral-800 my-1"></div>
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Spirits</div>
+                                {{ dropitem('/spirit/add', '🥃  Log a spirit') }}
+                                {{ dropitem('/spirit/distilleries', '🏭  Distilleries') }}
+                                {{ dropitem('/spirit/wishlist', '🔖  Spirit wishlist') }}
+                                <div class="border-t border-neutral-800 my-1"></div>
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">You</div>
+                                {{ dropitem('/dashboard', '📊  Dashboard') }}
                         </div>
                     </div>
                 </div>
@@ -217,6 +277,25 @@
                     </a>
 
                     {% if user %}
+                    <!-- Notifications bell -->
+                    <div class="relative" data-dropdown>
+                        <button type="button" data-dropdown-trigger aria-expanded="false" aria-haspopup="true" aria-label="Notifications"
+                                class="relative p-2 rounded-lg text-neutral-300 hover:text-wine-400 hover:bg-neutral-800/60 transition">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            <span id="nav-notif-badge" class="absolute top-1 right-1 w-2 h-2 bg-wine-500 rounded-full hidden"></span>
+                        </button>
+                        <div data-dropdown-menu hidden
+                             class="absolute right-0 mt-1 w-72 py-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200] max-h-96 overflow-y-auto">
+                            <div class="px-3 py-1.5 text-xs text-neutral-500 font-semibold flex justify-between items-center">
+                                <span>Notifications</span>
+                                <button onclick="markAllRead()" class="text-wine-400 hover:text-wine-300 text-xs">Mark all read</button>
+                            </div>
+                            <div id="nav-notif-list">
+                                <div class="px-3 py-4 text-xs text-neutral-500 text-center">No notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Profile dropdown (lg+) -->
                     <div class="relative hidden lg:block" data-dropdown>
                         <button type="button" data-dropdown-trigger aria-expanded="false" aria-haspopup="true"
@@ -309,6 +388,11 @@
     <!-- Toast container -->
     <div id="toast-container"></div>
 
+    <!-- Lightbox -->
+    <div id="lightbox" class="fixed inset-0 z-[2000] bg-black/90 hidden items-center justify-center p-4" onclick="this.classList.add('hidden'); this.classList.remove('flex');">
+        <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-lg shadow-2xl">
+    </div>
+
     <!-- Quick-add FAB (logged-in only) -->
     {% if user %}
     <button id="fab-btn" onclick="toggleFabMenu()" aria-label="Quick add">🍷</button>
@@ -319,6 +403,11 @@
         <a href="/map">📍 Open map</a>
     </div>
     {% endif %}
+
+    <!-- Back to top -->
+    <button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" class="fixed bottom-4 left-4 z-[1050] w-10 h-10 bg-neutral-900/90 backdrop-blur border border-neutral-700 rounded-full text-neutral-400 hover:text-wine-400 hover:border-wine-500 transition hidden items-center justify-center" aria-label="Back to top">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+    </button>
 
     <!-- Main -->
     <main id="main-content" class="flex-1">
@@ -397,6 +486,15 @@
                 var onScroll = function () { nav.classList.toggle('is-scrolled', window.scrollY > 8); };
                 onScroll();
                 window.addEventListener('scroll', onScroll, { passive: true });
+            }
+
+            // Back to top button
+            var backToTopBtn = document.getElementById('back-to-top');
+            if (backToTopBtn) {
+                window.addEventListener('scroll', function () {
+                    backToTopBtn.classList.toggle('hidden', window.scrollY < 400);
+                    backToTopBtn.classList.toggle('flex', window.scrollY >= 400);
+                }, { passive: true });
             }
 
             // Stagger index for server-rendered [data-animate] groups

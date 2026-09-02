@@ -2,69 +2,171 @@
 {% block title %}{{ venue.name }}{% endblock %}
 {% set icons = {'winery': '🏘️', 'restaurant': '🍽️', 'bar': '🍸', 'shop': '🛍️', 'home': '🏠'} %}
 {% block breadcrumbs %}
-<div class="max-w-3xl mx-auto px-4 pt-6">
+<div class="max-w-4xl mx-auto px-4 pt-6">
     <div class="breadcrumbs">
-        <a href="/">Home</a>
-        <span class="sep">·</span>
-        <a href="/map">Map</a>
-        <span class="sep">·</span>
+        <a href="/">Home</a><span class="sep">·</span>
+        <a href="/map">Map</a><span class="sep">·</span>
         <span>{{ venue.name }}</span>
     </div>
 </div>
 {% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 pb-8" data-animate>
-    <!-- Venue card -->
-    <div class="bg-neutral-900 rounded-2xl p-6 border border-neutral-800">
+<div class="max-w-4xl mx-auto px-4 pb-8" data-animate>
+    <!-- Hero image / photo gallery -->
+    {% if venue.photo_list %}
+    <div class="mb-6 rounded-2xl overflow-hidden border border-neutral-800">
+        <div class="grid grid-cols-4 gap-1 h-64 md:h-80">
+            {% for photo in venue.photo_list[:4] %}
+            <div class="overflow-hidden cursor-pointer {{ 'col-span-2 row-span-2' if loop.first else '' }}" onclick="openLightbox('{{ photo }}')">
+                <img src="{{ photo }}" alt="" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% elif venue.image_url %}
+    <div class="mb-6 rounded-2xl overflow-hidden border border-neutral-800 h-48 md:h-64">
+        <img src="{{ venue.image_url }}" alt="" class="w-full h-full object-cover">
+    </div>
+    {% endif %}
+
+    <!-- Venue header -->
+    <div class="bg-neutral-900 rounded-2xl p-6 md:p-8 border border-neutral-800">
         <div class="flex items-start gap-4">
             <div class="text-4xl leading-none">{{ icons.get(venue.venue_type, '📍') }}</div>
             <div class="flex-1 min-w-0">
                 <h1 class="text-2xl md:text-3xl font-display">{{ venue.name }}</h1>
                 <p class="text-xs uppercase tracking-[0.15em] text-neutral-500 mt-1">{{ venue.venue_type or 'venue' }}</p>
-                {% if venue.address %}
-                <p class="text-sm text-neutral-400 mt-2">{{ venue.address }}</p>
-                {% endif %}
-                {% if venue.description %}
-                <p class="text-sm text-neutral-400 mt-3 leading-relaxed">{{ venue.description }}</p>
-                {% endif %}
-
-                <div class="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-sm">
-                    {% if venue.website %}
-                    <a href="{{ venue.website }}" target="_blank" rel="noopener" class="text-wine-400 hover:text-wine-300">🔗 Website</a>
+                
+                <!-- Ratings row -->
+                <div class="flex flex-wrap items-center gap-4 mt-3">
+                    {% if avg_rating %}
+                    <div class="flex items-center gap-1">
+                        <span class="text-yellow-500 text-lg">{{ '★' * avg_rating|round(0, 'floor')|int }}{{ '☆' * (5 - avg_rating|round(0, 'floor')|int) }}</span>
+                        <span class="text-neutral-300 font-medium">{{ avg_rating }}</span>
+                        <span class="text-neutral-500 text-sm">({{ tastings_count }} community)</span>
+                    </div>
                     {% endif %}
-                    {% if venue.phone %}
-                    <a href="tel:{{ venue.phone }}" class="text-wine-400 hover:text-wine-300">📞 {{ venue.phone }}</a>
+                    {% if venue.google_rating %}
+                    <div class="flex items-center gap-1 text-sm text-neutral-400">
+                        <span>Google:</span>
+                        <span class="text-yellow-500">★</span>
+                        <span class="text-neutral-300">{{ venue.google_rating }}</span>
+                        <span>({{ venue.google_review_count }} reviews)</span>
+                    </div>
                     {% endif %}
-                    <a href="https://www.openstreetmap.org/?mlat={{ venue.lat }}&mlon={{ venue.lon }}#map=16/{{ venue.lat }}/{{ venue.lon }}"
-                       target="_blank" rel="noopener" class="text-wine-400 hover:text-wine-300">🗺️ Directions</a>
-                    <a href="/map" class="text-wine-400 hover:text-wine-300">See on the map</a>
+                    {% if venue.price_level %}
+                    <div class="text-sm text-neutral-400">
+                        {% for i in range(venue.price_level) %}${% endfor %}
+                        {% if venue.price_level == 1 %}<span class="text-neutral-600">Inexpensive</span>
+                        {% elif venue.price_level == 2 %}<span class="text-neutral-600">Moderate</span>
+                        {% elif venue.price_level == 3 %}<span class="text-neutral-600">Expensive</span>
+                        {% elif venue.price_level == 4 %}<span class="text-neutral-600">Very Expensive</span>{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-3 mt-6 text-sm">
-            <div class="bg-neutral-800 rounded-xl p-3 text-center">
-                <div class="text-xl font-display text-wine-400">{{ tastings_count }}</div>
-                <div class="text-xs text-neutral-400">Tastings</div>
+        <!-- Description -->
+        {% if venue.description %}
+        <p class="text-neutral-400 mt-4 leading-relaxed">{{ venue.description }}</p>
+        {% endif %}
+
+        <!-- Contact & info grid -->
+        <div class="grid md:grid-cols-2 gap-6 mt-6">
+            <!-- Left: Contact -->
+            <div class="space-y-3">
+                {% if venue.address %}
+                <div class="flex items-start gap-3">
+                    <span class="text-neutral-500 mt-0.5">📍</span>
+                    <div>
+                        <div class="text-sm text-neutral-300">{{ venue.address }}</div>
+                        <a href="https://www.openstreetmap.org/?mlat={{ venue.lat }}&mlon={{ venue.lon }}#map=16/{{ venue.lat }}/{{ venue.lon }}" target="_blank" rel="noopener" class="text-xs text-wine-400 hover:underline">Get directions →</a>
+                    </div>
+                </div>
+                {% endif %}
+                {% if venue.phone %}
+                <div class="flex items-center gap-3">
+                    <span class="text-neutral-500">📞</span>
+                    <a href="tel:{{ venue.phone }}" class="text-sm text-neutral-300 hover:text-wine-400">{{ venue.phone }}</a>
+                </div>
+                {% endif %}
+                {% if venue.website %}
+                <div class="flex items-center gap-3">
+                    <span class="text-neutral-500">🔗</span>
+                    <a href="{{ venue.website }}" target="_blank" rel="noopener" class="text-sm text-wine-400 hover:underline truncate max-w-xs">{{ venue.website }}</a>
+                </div>
+                {% endif %}
+                {% if venue.menu_url %}
+                <div class="flex items-center gap-3">
+                    <span class="text-neutral-500">📋</span>
+                    <a href="{{ venue.menu_url }}" target="_blank" rel="noopener" class="text-sm text-wine-400 hover:underline">View menu →</a>
+                </div>
+                {% endif %}
             </div>
-            <div class="bg-neutral-800 rounded-xl p-3 text-center">
-                <div class="text-xl font-display text-wine-400">{{ unique_wines }}</div>
-                <div class="text-xs text-neutral-400">Wines</div>
+
+            <!-- Right: Hours -->
+            {% if venue.hours_dict %}
+            <div>
+                <h3 class="text-sm font-medium text-neutral-400 mb-2">🕐 Hours</h3>
+                <div class="space-y-1 text-sm">
+                    {% for day, hours in venue.hours_dict.items() %}
+                    <div class="flex justify-between {{ 'text-wine-300 font-medium' if day == 'Saturday' or day == 'Sunday' else 'text-neutral-300' }}">
+                        <span>{{ day }}</span>
+                        <span>{{ hours }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="bg-neutral-800 rounded-xl p-3 text-center">
-                <div class="text-xl font-display text-wine-400">{{ unique_visitors }}</div>
-                <div class="text-xs text-neutral-400">Visitors</div>
+            {% endif %}
+        </div>
+
+        <!-- Amenities -->
+        {% if venue.amenity_list %}
+        <div class="mt-6">
+            <h3 class="text-sm font-medium text-neutral-400 mb-2">Amenities</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for amenity in venue.amenity_list[:12] %}
+                <span class="bg-neutral-800 text-neutral-300 text-xs px-2.5 py-1 rounded-full">{{ amenity }}</span>
+                {% endfor %}
             </div>
-            <div class="bg-neutral-800 rounded-xl p-3 text-center">
-                <div class="text-xl font-display text-wine-400">{{ avg_rating or '–' }}</div>
-                <div class="text-xs text-neutral-400">Avg</div>
-            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action buttons -->
+        <div class="flex flex-wrap gap-3 mt-6 pt-6 border-t border-neutral-800">
+            <a href="/wine/add?location_id={{ venue.id }}" class="bg-wine-600 hover:bg-wine-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                🍷 Log a tasting here
+            </a>
+            <a href="/map?lat={{ venue.lat }}&lon={{ venue.lon }}" class="border border-neutral-700 hover:border-wine-500 text-neutral-300 text-sm font-medium px-4 py-2 rounded-lg transition">
+                🗺️ See on map
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-4 gap-3 mt-6">
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ tastings_count }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Tastings</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ unique_wines }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Wines</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ unique_visitors }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Visitors</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ avg_rating or '–' }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Avg Rating</div>
         </div>
     </div>
 
     <!-- Wines poured here -->
-    <h2 class="text-lg font-display mt-8 mb-4">🍷 Wines poured here</h2>
     {% if poured %}
+    <h2 class="text-lg font-display mt-8 mb-4">🍷 Wines poured here</h2>
     <div class="grid sm:grid-cols-2 gap-3">
         {% for w in poured %}
         <a href="/wine/{{ w.id }}" data-lift class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 block">
@@ -77,9 +179,6 @@
         </a>
         {% endfor %}
     </div>
-    {% else %}
-    <p class="text-neutral-500 text-sm">No wines logged here yet.
-        <a href="/wine/add" class="text-wine-400 hover:underline">Be the first.</a></p>
     {% endif %}
 
     <!-- Recent tastings -->
@@ -88,19 +187,31 @@
     <div class="space-y-3">
         {% for note in notes[:15] %}
         <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
-            <div class="flex items-start justify-between gap-2">
-                <a href="/wine/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">{{ note.wine.display_name }}</a>
-                <span class="text-xs text-neutral-500 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+            <div class="flex items-start gap-3">
+                {% if note.photo_url %}
+                <img src="{{ note.photo_url }}" alt="" class="w-16 h-16 rounded-lg object-cover border border-neutral-800 flex-shrink-0 cursor-pointer" onclick="openLightbox('{{ note.photo_url }}')">
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between gap-2">
+                        <a href="/wine/{{ note.wine.id }}" class="font-medium text-wine-300 hover:text-wine-200">{{ note.wine.display_name }}</a>
+                        <span class="text-xs text-neutral-500 whitespace-nowrap">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+                        <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
+                        <span>by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
+                    </div>
+                    {% if note.notes %}
+                    <p class="text-sm text-neutral-400 mt-2 italic">"{{ note.notes }}"</p>
+                    {% endif %}
+                </div>
             </div>
-            <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
-                <span class="text-yellow-500">{{ '★' * note.rating }}{{ '☆' * (5 - note.rating) }}</span>
-                <span>by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
-            </div>
-            {% if note.notes %}
-            <p class="text-sm text-neutral-400 mt-2 italic">"{{ note.notes }}"</p>
-            {% endif %}
         </div>
         {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-neutral-500 text-sm text-center py-8">
+        <p>No tastings logged here yet.</p>
+        <a href="/wine/add?location_id={{ venue.id }}" class="text-wine-400 hover:underline mt-2 inline-block">Be the first →</a>
     </div>
     {% endif %}
 </div>

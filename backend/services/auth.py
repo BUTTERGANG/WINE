@@ -67,4 +67,5 @@ def get_session_cookie(token: str) -> dict:
         "max_age": _MAX_AGE,
         "samesite": "lax",
         "path": "/",
+        "secure": settings.secure_cookies,
     }

@@ -39,6 +39,12 @@ class User(Base):
         back_populates="followed_user",
         lazy="select",
     )
+    notifications = relationship(
+        "Notification",
+        foreign_keys="Notification.user_id",
+        back_populates="user",
+        lazy="select",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.username}>"

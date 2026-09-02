@@ -35,6 +35,16 @@ _ADDITIVE_COLUMNS = {
         ("description", "TEXT DEFAULT '' NOT NULL"),
         ("phone", "VARCHAR(50) DEFAULT '' NOT NULL"),
         ("image_url", "VARCHAR(500) DEFAULT '' NOT NULL"),
+        ("email", "VARCHAR(255) DEFAULT '' NOT NULL"),
+        ("photo_urls", "TEXT DEFAULT '' NOT NULL"),
+        ("menu_url", "VARCHAR(500) DEFAULT '' NOT NULL"),
+        ("hours", "TEXT DEFAULT '' NOT NULL"),
+        ("price_level", "INTEGER"),
+        ("google_rating", "FLOAT"),
+        ("google_review_count", "INTEGER DEFAULT 0 NOT NULL"),
+        ("google_place_id", "VARCHAR(200) DEFAULT '' NOT NULL"),
+        ("amenities", "TEXT DEFAULT '' NOT NULL"),
+        ("enriched_at", "TIMESTAMP"),
     ],
     "groups": [
         ("category", "VARCHAR(20) DEFAULT 'wine' NOT NULL"),
@@ -62,7 +72,7 @@ async def _apply_additive_migrations(conn):
 
 async def init_db():
     """Create all tables, then apply additive column migrations."""
-    from backend.models import wine, location, user, community, spirit  # noqa: F401 — register models
+    from backend.models import wine, location, user, community, spirit, notifications  # noqa: F401 — register models (order matters: wine defines TastingNote, location/user reference it)
 
     async with engine.begin() as conn:
         # Enable WAL mode for concurrent read/write

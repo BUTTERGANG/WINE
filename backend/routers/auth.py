@@ -16,6 +16,7 @@ from backend.services.auth import (
     get_session_cookie,
 )
 from backend.services.template import templates
+from backend.middleware import rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -31,6 +32,7 @@ async def register_page(request: Request):
 
 
 @router.post("/register")
+@rate_limit("3/hour")
 async def register(
     request: Request,
     username: str = Form(...),
@@ -38,6 +40,26 @@ async def register(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    # Validate input
+    if len(username) < 3 or len(username) > 50:
+        return templates.TemplateResponse(
+            "auth/register.html",
+            {"request": request, "error": "Username must be 3-50 characters"},
+            status_code=400,
+        )
+    if "@" not in email or "." not in email:
+        return templates.TemplateResponse(
+            "auth/register.html",
+            {"request": request, "error": "Please enter a valid email"},
+            status_code=400,
+        )
+    if len(password) < 8:
+        return templates.TemplateResponse(
+            "auth/register.html",
+            {"request": request, "error": "Password must be at least 8 characters"},
+            status_code=400,
+        )
+    
     # Check for existing user
     result = await db.execute(select(User).where((User.email == email) | (User.username == username)))
     if result.scalar_one_or_none():
@@ -64,6 +86,7 @@ async def register(
 
 
 @router.post("/login")
+@rate_limit("5/minute")
 async def login(
     request: Request,
     email: str = Form(...),

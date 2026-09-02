@@ -12,6 +12,7 @@ from backend.models.location import Location
 from backend.models.user import User
 from backend.models.community import Follow, Group, GroupMember
 from backend.services.auth import get_current_user
+from backend.config import settings
 from backend.services.template import templates
 
 
@@ -73,6 +74,10 @@ async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
     user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
     winery_count = (await db.execute(select(func.count()).select_from(Location).where(Location.venue_type == "winery"))).scalar() or 0
 
+    # Wine of the Day (server-rendered to avoid layout shift)
+    from backend.services.wine_of_day import get_wine_of_the_day
+    wotd = await get_wine_of_the_day(db)
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -84,6 +89,7 @@ async def landing_page(request: Request, db: AsyncSession = Depends(get_db)):
             "user_count": user_count,
             "winery_count": winery_count,
             "personal": personal,
+            "wotd": wotd,
         },
     )
 
@@ -307,6 +313,13 @@ async def venue_detail_page(location_id: str, request: Request, db: AsyncSession
 
     user = await get_current_user(request, db)
 
+    # Enrich venue if not already enriched
+    if not venue.enriched_at and settings.google_maps_api_key:
+        from backend.services.venue_enrichment import enrich_venue
+        success = await enrich_venue(venue)
+        if success:
+            await db.commit()
+
     notes = list((await db.execute(
         select(TastingNote)
         .options(selectinload(TastingNote.wine), selectinload(TastingNote.user))
@@ -354,6 +367,23 @@ async def venue_detail_page(location_id: str, request: Request, db: AsyncSession
             "avg_rating": round(sum(all_ratings) / len(all_ratings), 1) if all_ratings else None,
         },
     )
+
+
+@router.post("/venue/{location_id}/enrich", response_class=HTMLResponse)
+async def enrich_venue_endpoint(location_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Trigger enrichment for a venue (admin/debug endpoint)."""
+    venue = (await db.execute(select(Location).where(Location.id == location_id))).scalar_one_or_none()
+    if not venue:
+        return _not_found(request)
+
+    from backend.services.venue_enrichment import enrich_venue
+    success = await enrich_venue(venue)
+    if success:
+        await db.commit()
+
+    # Redirect back to venue page
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/venue/{location_id}", status_code=303)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

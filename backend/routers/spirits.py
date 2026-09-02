@@ -62,6 +62,7 @@ async def spirit_feed(limit: int = 30, db: AsyncSession = Depends(get_db)):
         "username": n.user.display_name or n.user.username,
         "user_id": n.user.id,
         "notes": n.notes[:280] if n.notes else "",
+        "photo_url": n.photo_url or "",
         "created_at": n.created_at.isoformat(),
     } for n in notes]}
 
@@ -159,6 +160,36 @@ async def get_spirit_detail(spirit_id: str, request: Request, db: AsyncSession =
     })
 
 
+# ── Distillery locate ────────────────────────────────────────────
+
+@router.get("/distilleries/locate")
+async def locate_distilleries(
+    q: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(get_db),
+):
+    """Resolve a search term (region, state, country, or distillery name)
+    to a map target so the client can fly there. Returns
+    {found, lat, lon, zoom, label, count}."""
+    q = q.strip()
+
+    # 1. Distillery name — center on the matching distilleries.
+    search_result = await search_distilleries(q, 100, db)
+    matches = search_result.get("results", [])
+    matches = [m for m in matches if m.get("lat") is not None and m.get("lon") is not None]
+    if matches:
+        lat = sum(m["lat"] for m in matches) / len(matches)
+        lon = sum(m["lon"] for m in matches) / len(matches)
+        spread = max(
+            (max(m["lat"] for m in matches) - min(m["lat"] for m in matches)),
+            (max(m["lon"] for m in matches) - min(m["lon"] for m in matches)),
+        )
+        zoom = 12 if spread < 0.15 else 10 if spread < 1 else 8 if spread < 5 else 6
+        return {"found": True, "lat": lat, "lon": lon, "zoom": zoom,
+                "label": q, "count": len(matches)}
+
+    return {"found": False, "label": q}
+
+
 # ── Spirit Groups Feed ──────────────────────────────────────────
 
 
@@ -194,6 +225,7 @@ async def spirit_group_feed(
         "username": n.user.display_name or n.user.username,
         "user_id": n.user.id,
         "notes": n.notes[:280] if n.notes else "",
+        "photo_url": n.photo_url or "",
         "created_at": n.created_at.isoformat(),
     } for n in notes]}
 

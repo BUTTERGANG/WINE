@@ -1,5 +1,6 @@
 """WINE application configuration."""
 
+import secrets
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 from pydantic import field_validator
@@ -8,6 +9,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
+
+
+def _generate_secret() -> str:
+    """Generate a strong random secret key."""
+    return secrets.token_urlsafe(64)
 
 
 def _normalize_db_url(url: str) -> str:
@@ -37,7 +43,7 @@ def _normalize_db_url(url: str) -> str:
 class Settings(BaseSettings):
     app_name: str = "WINE"
     debug: bool = True
-    secret_key: str = "change-me-in-production-wine-app-2026"
+    secret_key: str = _generate_secret()
 
     # Database — defaults to local SQLite; DATABASE_URL env overrides.
     database_url: str = f"sqlite+aiosqlite:///{DATA_DIR}/wine.db"
@@ -63,6 +69,18 @@ class Settings(BaseSettings):
 
     # Session
     session_ttl_hours: int = 24
+    secure_cookies: bool = False  # Set True for HTTPS
+
+    # CSRF
+    csrf_secret: str = _generate_secret()
+
+    # Rate limiting
+    rate_limit_login: str = "20/minute"
+    rate_limit_register: str = "10/minute"
+    rate_limit_default: str = "120/minute"
+    
+    # Test mode (disables rate limiting)
+    test_mode: bool = False
 
     @field_validator("database_url", mode="after")
     @classmethod

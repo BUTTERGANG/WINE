@@ -41,6 +41,24 @@
     </div>
 
     <h2 class="text-lg font-display mt-8 mb-4">Tasting Notes</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ spirit.tasting_notes|length }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Tastings</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-2xl font-display text-wine-400">{{ avg_rating or '-' }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Avg Rating</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-lg font-bold text-wine-400 capitalize">{{ spirit.spirit_type }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Type</div>
+        </div>
+        <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800 text-center">
+            <div class="text-lg font-bold text-wine-400">{{ spirit.region or '-' }}</div>
+            <div class="text-xs text-neutral-400 uppercase tracking-wide mt-0.5">Region</div>
+        </div>
+    </div>
     <div id="reviews" class="space-y-3" data-reveal-list>
         {% for note in spirit.tasting_notes %}
         <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
@@ -49,6 +67,11 @@
                 <span class="text-xs text-neutral-500">by <a href="/profile/{{ note.user.id }}" class="hover:text-wine-300">{{ note.user.display_name or note.user.username }}</a></span>
             </div>
             {% if note.notes %}<p class="text-sm text-neutral-300">{{ note.notes }}</p>{% endif %}
+            {% if note.photo_url %}
+            <div class="mt-2">
+                <img src="{{ note.photo_url }}" alt="Tasting photo" class="h-20 rounded-lg object-cover border border-neutral-800 cursor-zoom-in" onclick="openLightbox('{{ note.photo_url }}')">
+            </div>
+            {% endif %}
             {% if note.nose or note.palate or note.finish %}
             <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-neutral-400">
                 {% if note.nose %}<div><span class="text-neutral-500">Nose:</span> {{ note.nose }}</div>{% endif %}

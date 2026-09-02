@@ -43,7 +43,7 @@ app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uplo
 
 
 # Import and register routers
-from backend.routers import auth, wines, locations, community, pages, upload, wineries, menu, spirits
+from backend.routers import auth, wines, locations, community, pages, upload, wineries, menu, spirits, notifications, password_reset
 
 app.include_router(auth.router)
 app.include_router(wines.router)
@@ -54,6 +54,8 @@ app.include_router(upload.router)
 app.include_router(wineries.router)
 app.include_router(menu.router)
 app.include_router(spirits.router)
+app.include_router(notifications.router)
+app.include_router(password_reset.router)
 
 
 @app.get("/health")

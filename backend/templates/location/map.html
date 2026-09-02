@@ -3,15 +3,18 @@
 {% block content %}
 <div class="h-[calc(100vh-3.5rem)] relative">
     <!-- Overlay controls -->
-    <div class="absolute top-4 left-4 right-14 sm:right-auto z-[1000] flex flex-col gap-2 sm:w-64">
+    <div class="absolute top-4 left-4 right-14 sm:right-auto z-[1000] flex flex-col gap-2 sm:w-72">
         <!-- Location search -->
         <form onsubmit="flyToSearch(event)" class="relative">
             <input type="text" id="map-search" autocomplete="off"
-                   placeholder="State, ZIP, region, or winery…"
-                   class="w-full bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:border-wine-500 focus:outline-none">
+                   placeholder="Wine, venue, user, winery, region…"
+                   class="w-full bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:border-wine-500 focus:outline-none"
+                   oninput="debounceSearch(this.value)">
             <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             <div id="map-search-msg" class="hidden mt-1 px-2.5 py-1.5 bg-neutral-900/95 border border-neutral-700 rounded-lg text-[11px] text-neutral-400"></div>
+            <div id="search-results" class="hidden mt-1 bg-neutral-900/95 border border-neutral-700 rounded-lg shadow-xl max-h-64 overflow-y-auto"></div>
         </form>
+
         <!-- View mode -->
         <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
             <button id="filter-my" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
@@ -20,30 +23,114 @@
                     onclick="toggleFilter('all')">🌍 All</button>
             <button id="filter-wineries" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
                     onclick="toggleFilter('wineries')">🏘️ Wineries</button>
+            <button id="filter-distilleries" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
+                    onclick="toggleFilter('distilleries')">🥃 Dist.</button>
         </div>
+
         <!-- Map mode toggle -->
         <div class="flex bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 p-0.5">
             <button id="mode-pins" class="px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition"
                     onclick="setMapMode('pins')">📍 Pins</button>
             <button id="mode-heat" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
                     onclick="setMapMode('heat')">🔥 Heat</button>
+            <button id="mode-photo" class="px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800"
+                    onclick="setMapMode('photo')">📷 Photos</button>
         </div>
+
         <!-- Radius selector -->
         <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
             <label class="text-xs text-neutral-400 block mb-1">Radius: <span id="radius-label">50</span> km</label>
             <input type="range" min="5" max="500" value="50" step="5" id="radius-slider"
-                   class="w-24 accent-wine-500"
+                   class="w-full accent-wine-500"
                    oninput="document.getElementById('radius-label').textContent=this.value; debounceLoadPins()">
         </div>
+
+        <!-- Rating threshold -->
+        <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
+            <label class="text-xs text-neutral-400 block mb-1">Min rating: <span id="rating-label">1</span> ★</label>
+            <input type="range" min="1" max="5" value="1" step="1" id="rating-slider"
+                   class="w-full accent-wine-500"
+                   oninput="document.getElementById('rating-label').textContent=this.value; debounceLoadPins()">
+        </div>
+
         <!-- Wine type filter -->
         <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
-            <select id="type-filter" class="bg-transparent text-xs text-neutral-300 border-none focus:outline-none" onchange="debounceLoadPins()">
+            <select id="type-filter" class="bg-transparent text-xs text-neutral-300 border-none focus:outline-none w-full" onchange="debounceLoadPins()">
                 <option value="">All types</option>
-                <option value="red">Red</option>
-                <option value="white">White</option>
-                <option value="rosé">Rosé</option>
-                <option value="sparkling">Sparkling</option>
+                <option value="red">🔴 Red</option>
+                <option value="white">🟡 White</option>
+                <option value="rosé">🩷 Rosé</option>
+                <option value="sparkling">✨ Sparkling</option>
+                <option value="fortified">🍷 Fortified</option>
+                <option value="dessert">🍯 Dessert</option>
             </select>
+        </div>
+
+        <!-- Venue type filter -->
+        <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2">
+            <select id="venue-filter" class="bg-transparent text-xs text-neutral-300 border-none focus:outline-none w-full" onchange="debounceLoadPins()">
+                <option value="">All venues</option>
+                <option value="winery">🏘️ Wineries</option>
+                <option value="restaurant">🍽️ Restaurants</option>
+                <option value="bar">🍸 Bars</option>
+                <option value="home">🏠 Homes</option>
+                <option value="shop">🛒 Shops</option>
+            </select>
+        </div>
+
+        <!-- Layer toggles -->
+        <div class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2 space-y-1">
+            <label class="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
+                <input type="checkbox" id="layer-regions" class="accent-wine-500" onchange="toggleRegionLayer()">
+                🗺️ Region boundaries
+            </label>
+            <label class="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
+                <input type="checkbox" id="layer-my-heat" class="accent-wine-500" onchange="toggleMyHeat()">
+                🔥 My tastings heat
+            </label>
+            <label class="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
+                <input type="checkbox" id="layer-friends" class="accent-wine-500">
+                👥 Show friends at venues
+            </label>
+        </div>
+
+        <!-- Measure tool -->
+        <button id="measure-btn" class="bg-neutral-900/90 backdrop-blur-sm rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-wine-500 transition text-left"
+                onclick="toggleMeasure()">
+            📏 Measure distance
+        </button>
+
+        <!-- Trail/Crawl Builder -->
+        <button id="trail-btn" class="bg-wine-600/90 backdrop-blur-sm rounded-lg border border-wine-500 px-3 py-2 text-xs text-white font-medium hover:bg-wine-500 transition text-left flex items-center justify-between"
+                onclick="toggleTrailMode()">
+            <span>🥃 Build a trail</span>
+            <span id="trail-count" class="bg-wine-800 px-1.5 py-0.5 rounded text-[10px] hidden">0</span>
+        </button>
+    </div>
+
+    <!-- Trail panel -->
+    <div id="trail-panel" class="absolute bottom-4 left-4 right-4 sm:right-auto sm:w-80 z-[1000] bg-neutral-900/95 backdrop-blur border border-neutral-700 rounded-xl p-4 hidden">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-display text-wine-300">🥃 Your Trail</h3>
+            <button onclick="toggleTrailMode()" class="text-neutral-500 hover:text-white text-xs">✕</button>
+        </div>
+        <p class="text-xs text-neutral-400 mb-3">Click wineries or distilleries on the map to add stops. Drag to reorder.</p>
+        <div id="trail-stops" class="space-y-2 max-h-48 overflow-y-auto mb-3">
+            <div class="text-xs text-neutral-500 text-center py-4">No stops yet — click a venue on the map</div>
+        </div>
+        <div id="trail-summary" class="border-t border-neutral-700 pt-2 mb-3 hidden">
+            <div class="flex justify-between text-xs text-neutral-400">
+                <span>Total distance:</span>
+                <span id="trail-distance" class="text-wine-300 font-medium">0 km</span>
+            </div>
+            <div class="flex justify-between text-xs text-neutral-400 mt-1">
+                <span>Est. time:</span>
+                <span id="trail-time" class="text-wine-300 font-medium">—</span>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="clearTrail()" class="flex-1 border border-neutral-700 hover:border-red-500 text-neutral-300 hover:text-red-400 px-3 py-1.5 rounded-lg text-xs transition">Clear</button>
+            <button onclick="shareTrail()" class="flex-1 bg-wine-600 hover:bg-wine-500 text-white px-3 py-1.5 rounded-lg text-xs transition">Share</button>
         </div>
     </div>
 
@@ -52,6 +139,9 @@
             onclick="findNearMe()">
         📍 Near Me
     </button>
+
+    <!-- Measure tooltip -->
+    <div id="measure-tooltip" class="absolute z-[1000] bg-wine-600 text-white text-xs px-2 py-1 rounded hidden pointer-events-none"></div>
 
     <div id="wine-map" class="w-full h-full"></div>
 
@@ -63,9 +153,11 @@
             <div class="step"><span class="emoji">📍</span><span class="label">Pin a tasting</span></div>
             <div class="step"><span class="emoji">🔍</span><span class="label">Zoom to explore</span></div>
             <div class="step"><span class="emoji">🏘️</span><span class="label">Find wineries</span></div>
-            <div class="step"><span class="emoji">🔥</span><span class="label">Heatmap view</span></div>
+            <div class="step"><span class="emoji">🥃</span><span class="label">Discover distilleries</span></div>
+            <div class="step"><span class="emoji">🛤️</span><span class="label">Build trails</span></div>
+            <div class="step"><span class="emoji">📷</span><span class="label">Photo view</span></div>
         </div>
-        <p>Every wine you log gets pinned to a map. See what people are drinking near you, discover wineries, and explore the world of wine.</p>
+        <p>Every wine you log gets pinned to a map. See what people are drinking near you, discover wineries, build tasting trails, and explore.</p>
         <button class="dismiss" onclick="dismissMapOnboard()">Got it! 🍷</button>
     </div>
 </div>
@@ -79,19 +171,53 @@ let map = null;
 let markersLayer;
 let clusterGroup;
 let heatLayer;
+let myHeatLayer;
+let regionLayer;
+let measureLayer;
+let measurePoints = [];
+let measureActive = false;
 let currentMapMode = 'pins';
 let currentFilter = 'all';
 let loadTimer;
+let searchTimer;
+let trailMode = false;
+let trailStops = [];
+let trailLine = null;
+
+const WINE_COLORS = {
+    red: '#b04116',
+    white: '#d4a853',
+    rosé: '#d46a8a',
+    sparkling: '#e8c860',
+    fortified: '#a0522d',
+    dessert: '#cd853f'
+};
+
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.repeat(Math.max(5-Math.min(Math.max(n|0,0),5),0)); }
+
+function winePinColor(type) {
+    return WINE_COLORS[type] || '#e98844';
+}
 
 function initMap() {
     map = L.map('wine-map', { tap: true, touchZoom: true, zoomControl: false }).setView([40, -95], 4);
     L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Dark tiles via CSS filter (no API key needed)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18,
     }).addTo(map);
+
+    // Apply dark filter to tiles
+    const style = document.createElement('style');
+    style.textContent = `
+        .leaflet-tile {
+            filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+        }
+    `;
+    document.head.appendChild(style);
 
     markersLayer = L.layerGroup().addTo(map);
     clusterGroup = L.markerClusterGroup({
@@ -113,12 +239,18 @@ function initMap() {
     });
     map.addLayer(clusterGroup);
 
+    regionLayer = L.layerGroup();
+    measureLayer = L.layerGroup().addTo(map);
+
     navigator.geolocation?.getCurrentPosition(pos => {
         map.setView([pos.coords.latitude, pos.coords.longitude], 10);
     }, () => {});
 
     map.on('moveend', () => debounceLoadPins());
+    map.on('click', (e) => onMapClick(e));
+
     loadPins();
+    restoreFromHash();
 }
 
 function debounceLoadPins() {
@@ -126,11 +258,54 @@ function debounceLoadPins() {
     loadTimer = setTimeout(() => loadPins(currentFilter), 300);
 }
 
+function debounceSearch(q) {
+    clearTimeout(searchTimer);
+    const results = document.getElementById('search-results');
+    if (q.length < 2) { results.classList.add('hidden'); return; }
+    searchTimer = setTimeout(() => doSearch(q), 250);
+}
+
+function doSearch(q) {
+    const results = document.getElementById('search-results');
+    fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const items = data.results || [];
+            if (!items.length) {
+                results.innerHTML = '<div class="p-3 text-neutral-400 text-xs text-center">No results</div>';
+                results.classList.remove('hidden');
+                return;
+            }
+            results.innerHTML = items.map(item => {
+                const icon = item.type === 'wine' ? '🍷' : item.type === 'venue' ? '📍' : item.type === 'user' ? '👤' : item.type === 'winery' ? '🏘️' : '🥃';
+                const label = item.name + (item.subtitle ? ' — ' + item.subtitle : '');
+                return `<button onclick="flyToItem('${item.type}', '${item.id}')" class="block w-full text-left p-3 border-b border-neutral-800 hover:bg-neutral-800 text-xs">
+                    <span>${icon}</span> <span class="font-medium">${esc(label)}</span>
+                    <span class="text-neutral-500 ml-1">(${item.type})</span>
+                </button>`;
+            }).join('');
+            results.classList.remove('hidden');
+        })
+        .catch(() => results.classList.add('hidden'));
+}
+
+function flyToItem(type, id) {
+    const results = document.getElementById('search-results');
+    results.classList.add('hidden');
+    if (type === 'wine' || type === 'venue' || type === 'user') {
+        fetch(`/api/locations/nearby?lat=0&lon=0&radius=20000`)
+            .then(() => {
+                // For wines and users, just show a toast
+                showToast(`Selected ${type}`, 'info');
+            });
+    }
+}
+
 const MY_ID = '{{ user.id if user else "" }}';
 
 function loadPins(userFilter) {
     if (userFilter !== undefined) currentFilter = userFilter;
-    return currentMapMode === 'heat' ? loadHeat() : loadMarkers();
+    return currentMapMode === 'heat' ? loadHeat() : currentMapMode === 'photo' ? loadPhotoMode() : loadMarkers();
 }
 
 function loadHeat() {
@@ -151,6 +326,29 @@ function loadHeat() {
         .catch(() => {});
 }
 
+function loadMyHeat() {
+    if (myHeatLayer) { map.removeLayer(myHeatLayer); myHeatLayer = null; }
+    if (!MY_ID) return;
+    fetch(`/api/locations/heatmap?user_id=${encodeURIComponent(MY_ID)}`)
+        .then(r => r.json())
+        .then(data => {
+            const points = data.points || [];
+            if (points.length) {
+                myHeatLayer = L.heatLayer(points, {
+                    radius: 25, blur: 15, maxZoom: 10, max: 1.0,
+                    gradient: { 0.2: '#1e3a5f', 0.5: '#3b82f6', 0.8: '#60a5fa' },
+                }).addTo(map);
+            }
+        })
+        .catch(() => {});
+}
+
+function toggleMyHeat() {
+    const checked = document.getElementById('layer-my-heat').checked;
+    if (checked) loadMyHeat();
+    else if (myHeatLayer) { map.removeLayer(myHeatLayer); myHeatLayer = null; }
+}
+
 // Radius (km) that covers the visible map — center to a viewport corner.
 function viewportRadiusKm() {
     const b = map.getBounds();
@@ -161,16 +359,20 @@ function loadMarkers() {
     const center = map.getBounds().getCenter();
     const radius = document.getElementById('radius-slider').value;
     const typeFilter = document.getElementById('type-filter').value;
+    const venueFilter = document.getElementById('venue-filter').value;
+    const minRating = document.getElementById('rating-slider').value;
 
     markersLayer.clearLayers();
     clusterGroup.clearLayers();
     if (heatLayer) map.removeLayer(heatLayer);
 
-    // Winery mode — load winery pins instead of tasting pins.
-    // Wineries are a fixed dataset, so scan the whole visible map rather
-    // than the (tasting-oriented) radius slider.
     if (currentFilter === 'wineries') {
         loadWineries(center, viewportRadiusKm());
+        return;
+    }
+
+    if (currentFilter === 'distilleries') {
+        loadDistilleries(center, viewportRadiusKm());
         return;
     }
 
@@ -185,6 +387,8 @@ function loadMarkers() {
 
             let features = data.features || [];
             if (typeFilter) features = features.filter(f => f.properties.wine_type === typeFilter);
+            if (venueFilter) features = features.filter(f => f.properties.venue_type === venueFilter);
+            if (minRating > 1) features = features.filter(f => f.properties.rating >= minRating);
 
             if (!features.length) {
                 L.marker(center)
@@ -196,28 +400,71 @@ function loadMarkers() {
             features.forEach(f => {
                 const coords = f.geometry.coordinates;
                 const p = f.properties;
+                const pinColor = winePinColor(p.wine_type);
                 const icon = L.divIcon({
                     className: 'wine-pin' + (p.user_id === MY_ID ? ' my-wine' : ''),
-                    html: '<div></div>', iconSize: [24, 24], iconAnchor: [12, 24],
+                    html: '<div style="background:' + pinColor + '!important"></div>',
+                    iconSize: [24, 24], iconAnchor: [12, 24],
                 });
-                const photo = p.photo_url
-                    ? `<img src="${esc(p.photo_url)}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px;margin-bottom:4px">` : '';
-                const locLink = p.location_id
-                    ? '<a href="/venue/' + encodeURIComponent(p.location_id) + '" style="display:inline-block;background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;margin-top:6px;text-decoration:none">📍 ' + esc(p.location_name) + ' →</a>'
-                    : '<div style="font-size:12px;color:#999;margin-top:4px">📍 ' + esc(p.location_name) + '</div>';
                 const marker = L.marker([coords[1], coords[0]], { icon });
-                marker.bindPopup(
-                    '<div style="min-width:180px">' + photo +
-                    '<div style="font-weight:600;margin-bottom:2px;font-size:14px">' + esc(p.wine_name) + '</div>' +
-                    '<div style="font-size:13px;color:#e6b800;margin-bottom:4px">' + stars(p.rating) + '</div>' +
-                    locLink +
-                    '<div style="font-size:11px;color:#777;margin-top:3px">by ' + esc(p.username) + '</div>' +
-                    (p.notes ? '<div style="font-size:11px;color:#888;margin-top:4px">"' + esc(p.notes) + '"</div>' : '') +
-                    '<div style="margin-top:6px;border-top:1px solid #333;padding-top:6px;text-align:center">' +
-                    '<a href="/wine/' + encodeURIComponent(p.wine_id) + '" style="color:#e98844;font-size:13px;font-weight:500;text-decoration:none">🍷 View wine →</a></div>' +
-                    '</div>'
-                );
+                marker.bindPopup(buildPopup(p), { maxWidth: 280 });
                 clusterGroup.addLayer(marker);
+            });
+        })
+        .catch(() => {});
+}
+
+function buildPopup(p) {
+    const photo = p.photo_url
+        ? `<div style="margin-bottom:8px;border-radius:8px;overflow:hidden;cursor:pointer" onclick="openLightbox('${esc(p.photo_url)}')">
+             <img src="${esc(p.photo_url)}" alt="" style="width:100%;height:120px;object-fit:cover"></div>` : '';
+    const locLink = p.location_id
+        ? '<a href="/venue/' + encodeURIComponent(p.location_id) + '" style="display:inline-block;background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;margin-top:6px;text-decoration:none">📍 ' + esc(p.location_name) + ' →</a>'
+        : '<div style="font-size:12px;color:#999;margin-top:4px">📍 ' + esc(p.location_name) + '</div>';
+    const friendsHtml = p.friends && p.friends.length
+        ? '<div style="margin-top:6px;display:flex;gap:4px">' + p.friends.map(f => '<a href="/profile/' + esc(f.id) + '" title="' + esc(f.name) + '"><span style="width:24px;height:24px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:12px">' + esc(f.initial) + '</span></a>').join('') + '</div>'
+        : '';
+    return `<div style="min-width:200px">
+        ${photo}
+        <div style="font-weight:600;margin-bottom:4px;font-size:15px">${esc(p.wine_name)}</div>
+        <div style="font-size:13px;color:#e6b800;margin-bottom:4px">${stars(p.rating)}</div>
+        ${locLink}
+        <div style="font-size:11px;color:#777;margin-top:3px">by <a href="/profile/${encodeURIComponent(p.user_id)}" style="color:#e98844">${esc(p.username)}</a></div>
+        ${friendsHtml}
+        ${p.notes ? '<div style="font-size:11px;color:#888;margin-top:4px;font-style:italic">' + esc(p.notes) + '</div>' : ''}
+        <div style="margin-top:8px;border-top:1px solid #333;padding-top:8px;text-align:center">
+            <a href="/wine/${encodeURIComponent(p.wine_id)}" style="color:#e98844;font-size:13px;font-weight:500;text-decoration:none">🍷 View wine →</a>
+        </div>
+    </div>`;
+}
+
+function loadPhotoMode() {
+    markersLayer.clearLayers();
+    clusterGroup.clearLayers();
+    const center = map.getBounds().getCenter();
+    const radius = document.getElementById('radius-slider').value;
+
+    fetch(`/api/locations/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`)
+        .then(r => r.json())
+        .then(data => {
+            const features = (data.features || []).filter(f => f.properties.photo_url);
+            if (!features.length) {
+                L.marker(center).bindPopup('<div style="text-align:center">No photos in this area</div>').addTo(markersLayer);
+                return;
+            }
+            features.forEach(f => {
+                const coords = f.geometry.coordinates;
+                const p = f.properties;
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="width:48px;height:48px;border-radius:8px;overflow:hidden;border:2px solid ${winePinColor(p.wine_type)};box-shadow:0 2px 8px rgba(0,0,0,0.5)">
+                             <img src="${esc(p.photo_url)}" style="width:100%;height:100%;object-fit:cover">
+                           </div>`,
+                    iconSize: [48, 48], iconAnchor: [24, 48],
+                });
+                const marker = L.marker([coords[1], coords[0]], { icon });
+                marker.bindPopup(buildPopup(p), { maxWidth: 280 });
+                markersLayer.addLayer(marker);
             });
         })
         .catch(() => {});
@@ -225,23 +472,23 @@ function loadMarkers() {
 
 function setMapMode(mode) {
     currentMapMode = mode;
-    document.getElementById('mode-pins').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
-        (mode === 'pins' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
-    document.getElementById('mode-heat').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
-        (mode === 'heat' ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    ['pins', 'heat', 'photo'].forEach(m => {
+        document.getElementById('mode-' + m).className = 'px-3 py-1.5 rounded-md text-xs font-medium transition ' +
+            (mode === m ? 'bg-wine-600 text-white' : 'hover:bg-neutral-800');
+    });
     loadPins();
 }
 
 function toggleFilter(filter) {
     currentFilter = filter;
-    // Clear all highlights
-    document.getElementById('filter-my').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
-    document.getElementById('filter-all').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
-    document.getElementById('filter-wineries').className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
-    // Highlight selected
-    const btn = document.getElementById(filter === 'my' ? 'filter-my' : filter === 'all' ? 'filter-all' : 'filter-wineries');
-    btn.className = 'px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition';
+    ['my', 'all', 'wineries', 'distilleries'].forEach(f => {
+        const btn = document.getElementById('filter-' + f);
+        if (btn) btn.className = 'px-3 py-1.5 rounded-md text-xs font-medium transition hover:bg-neutral-800';
+    });
+    const btn = document.getElementById('filter-' + filter);
+    if (btn) btn.className = 'px-3 py-1.5 rounded-md text-xs font-medium bg-wine-600 text-white transition';
     loadPins(filter);
+    updateHash();
 }
 
 function loadWineries(center, radius) {
@@ -251,11 +498,10 @@ function loadWineries(center, radius) {
             const features = data.features || [];
             if (!features.length) {
                 L.marker([center.lat, center.lng])
-                    .bindPopup('<div style="text-align:center;color:#666">No wineries found in this area.<br><a href="/wineries" style="color:#e98844">Import some!</a></div>')
+                    .bindPopup('<div style="text-align:center;color:#666">No wineries found.<br><a href="/wineries" style="color:#e98844">Import some!</a></div>')
                     .addTo(markersLayer);
                 return;
             }
-            // Explain the cluster bubbles the first time they appear.
             if (map.getZoom() < 13 && !sessionStorage.getItem('cluster-hint') && window.showToast) {
                 window.showToast('Numbered circles group nearby wineries — tap one (or zoom in) to see them individually', 'info');
                 sessionStorage.setItem('cluster-hint', '1');
@@ -266,28 +512,243 @@ function loadWineries(center, radius) {
                 const icon = L.divIcon({
                     className: 'wine-pin',
                     html: '<div style="background:#6b4e3a!important"></div>',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 24],
+                    iconSize: [24, 24], iconAnchor: [12, 24],
                 });
                 const marker = L.marker([coords[1], coords[0]], { icon });
-                marker.bindPopup(`
-                    <div style="min-width:200px">
-                        <div style="font-weight:600;font-size:15px;margin-bottom:6px">🏘️ ${esc(p.name)}</div>
-                        ${p.address ? `<div style="font-size:12px;color:#999;margin-bottom:4px">${esc(p.address)}</div>` : ''}
-                        ${p.tasting_count ? `<div style="font-size:13px;color:#e98844;margin-bottom:4px">🍷 ${p.tasting_count} tastings here</div>` : ''}
-                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
-                            ${p.website ? `<a href="${esc(p.website)}" target="_blank" style="background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;text-align:center">🔗 Website</a>` : ''}
-                            <a href="/venue/${p.id}" style="background:#e98844;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;text-align:center">🏘️ View winery →</a>
-                        </div>
-                    </div>
-                `);
+                marker.on('click', (e) => { if (trailMode) addToTrail(p, e.latlng); });
+                marker.bindPopup(buildVenuePopup('🏘️', p, 'winery'));
                 clusterGroup.addLayer(marker);
             });
         })
-        .catch(() => {
-            if (window.showToast) window.showToast('Could not load wineries — try again', 'error');
-        });
+        .catch(() => { if (window.showToast) window.showToast('Could not load wineries', 'error'); });
 }
+
+function loadDistilleries(center, radius) {
+    fetch(`/api/spirits/distilleries/nearby?lat=${center.lat}&lon=${center.lng}&radius=${radius}`)
+        .then(r => r.json())
+        .then(data => {
+            const features = data.features || [];
+            if (!features.length) {
+                L.marker([center.lat, center.lng])
+                    .bindPopup('<div style="text-align:center;color:#666">No distilleries found.</div>')
+                    .addTo(markersLayer);
+                return;
+            }
+            features.forEach(f => {
+                const coords = f.geometry.coordinates;
+                const p = f.properties;
+                const icon = L.divIcon({
+                    className: 'wine-pin',
+                    html: '<div style="background:#4a3728!important"></div>',
+                    iconSize: [24, 24], iconAnchor: [12, 24],
+                });
+                const marker = L.marker([coords[1], coords[0]], { icon });
+                marker.on('click', (e) => { if (trailMode) addToTrail(p, e.latlng); });
+                marker.bindPopup(buildVenuePopup('🥃', p, 'distillery'));
+                clusterGroup.addLayer(marker);
+            });
+        })
+        .catch(() => { if (window.showToast) window.showToast('Could not load distilleries', 'error'); });
+}
+
+function buildVenuePopup(emoji, p, type) {
+    const websiteBtn = p.website ? `<a href="${esc(p.website)}" target="_blank" style="background:#2a2a3e;color:#e98844;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;text-align:center">🔗 Website</a>` : '';
+    const trailBtn = trailMode ? `<span style="background:#166534;color:#bbf7d0;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;text-align:center">✓ Added</span>` : '';
+    return `<div style="min-width:200px">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px">${emoji} ${esc(p.name)}</div>
+        ${p.address ? `<div style="font-size:12px;color:#999;margin-bottom:4px">${esc(p.address)}</div>` : ''}
+        ${p.tasting_count ? `<div style="font-size:13px;color:#e98844;margin-bottom:4px">🍷 ${p.tasting_count} tastings here</div>` : ''}
+        ${p.spirit_types ? `<div style="font-size:12px;color:#999;margin-bottom:4px">Types: ${esc(p.spirit_types)}</div>` : ''}
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+            ${websiteBtn}
+            <a href="/venue/${p.id}" style="background:#e98844;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;text-align:center">${emoji} View ${type} →</a>
+            ${trailBtn}
+        </div>
+    </div>`;
+}
+
+// ── Region boundaries ─────────────────────────────────────────
+
+function toggleRegionLayer() {
+    const checked = document.getElementById('layer-regions').checked;
+    if (checked) loadRegionBoundaries();
+    else regionLayer.clearLayers();
+}
+
+function loadRegionBoundaries() {
+    fetch('/api/regions/boundaries')
+        .then(r => r.json())
+        .then(data => {
+            regionLayer.clearLayers();
+            (data.features || []).forEach(f => {
+                const coords = f.geometry.coordinates[0].map(c => [c[1], c[0]]);
+                L.polygon(coords, {
+                    color: '#e98844', weight: 1, fillOpacity: 0.05, fillColor: '#e98844'
+                }).bindPopup(esc(f.properties.name)).addTo(regionLayer);
+            });
+            regionLayer.addTo(map);
+        })
+        .catch(() => {});
+}
+
+// ── Map click ─────────────────────────────────────────────────
+
+function onMapClick(e) {
+    if (measureActive) { addMeasurePoint(e.latlng); return; }
+    if (trailMode) return; // Don't show popup in trail mode
+    // Reverse geocode and show nearby
+    fetch('/api/locations/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'lat=' + e.latlng.lat + '&lon=' + e.latlng.lng,
+    })
+    .then(r => r.json())
+    .then(data => {
+        const name = data.name || data.label || 'Dropped pin';
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<div style="min-width:180px"><div style="font-weight:600;margin-bottom:4px">📍 ' + esc(name) + '</div><a href="/wine/add?lat=' + e.latlng.lat + '&lon=' + e.latlng.lng + '" style="color:#e98844;font-size:13px">Log a wine here →</a></div>')
+            .openOn(map);
+    })
+    .catch(() => {});
+}
+
+// ── Measure tool ──────────────────────────────────────────────
+
+function toggleMeasure() {
+    measureActive = !measureActive;
+    measurePoints = [];
+    measureLayer.clearLayers();
+    document.getElementById('measure-btn').classList.toggle('bg-wine-600', measureActive);
+    document.getElementById('measure-btn').classList.toggle('text-white', measureActive);
+    if (measureActive) {
+        map.getContainer().style.cursor = 'crosshair';
+        showToast('Click two points to measure distance', 'info');
+    } else {
+        map.getContainer().style.cursor = '';
+    }
+}
+
+function addMeasurePoint(latlng) {
+    measurePoints.push(latlng);
+    L.circleMarker(latlng, { radius: 5, color: '#e98844', fillOpacity: 1 }).addTo(measureLayer);
+    if (measurePoints.length === 2) {
+        const dist = measurePoints[0].distanceTo(measurePoints[1]) / 1000;
+        L.polyline(measurePoints, { color: '#e98844', dashArray: '5,10' }).addTo(measureLayer);
+        L.marker(measurePoints[1]).bindPopup(dist.toFixed(1) + ' km').openOn(map);
+        measureActive = false;
+        map.getContainer().style.cursor = '';
+    }
+}
+
+// ── Trail builder ─────────────────────────────────────────────
+
+function toggleTrailMode() {
+    trailMode = !trailMode;
+    document.getElementById('trail-btn').classList.toggle('ring-2', trailMode);
+    document.getElementById('trail-btn').classList.toggle('ring-wine-300', trailMode);
+    document.getElementById('trail-panel').classList.toggle('hidden', !trailMode);
+    document.getElementById('trail-count').classList.toggle('hidden', trailStops.length === 0);
+    if (trailMode) {
+        showToast('Click wineries or distilleries to add stops', 'info');
+    }
+}
+
+function addToTrail(p, latlng) {
+    if (trailStops.find(s => s.id === p.id)) {
+        showToast('Already on the trail', 'info');
+        return;
+    }
+    trailStops.push({ id: p.id, name: p.name, type: p.venue_type || 'winery', lat: latlng.lat, lng: latlng.lng });
+    updateTrailUI();
+    showToast('Added ' + p.name + ' to trail', 'success');
+}
+
+function removeFromTrail(id) {
+    trailStops = trailStops.filter(s => s.id !== id);
+    updateTrailUI();
+}
+
+function updateTrailUI() {
+    const container = document.getElementById('trail-stops');
+    const countBadge = document.getElementById('trail-count');
+    const summary = document.getElementById('trail-summary');
+
+    countBadge.textContent = trailStops.length;
+    countBadge.classList.toggle('hidden', trailStops.length === 0);
+
+    if (!trailStops.length) {
+        container.innerHTML = '<div class="text-xs text-neutral-500 text-center py-4">No stops yet — click a venue on the map</div>';
+        summary.classList.add('hidden');
+        if (trailLine) { map.removeLayer(trailLine); trailLine = null; }
+        return;
+    }
+
+    container.innerHTML = trailStops.map((s, i) =>
+        `<div class="flex items-center gap-2 bg-neutral-800 rounded-lg p-2 text-xs">
+            <span class="text-wine-400 font-bold">${i + 1}.</span>
+            <span class="flex-1 truncate">${s.type === 'distillery' ? '🥃' : '🏘️'} ${esc(s.name)}</span>
+            <button onclick="removeFromTrail('${s.id}')" class="text-neutral-500 hover:text-red-400">✕</button>
+        </div>`
+    ).join('');
+
+    // Draw trail line
+    if (trailLine) map.removeLayer(trailLine);
+    const points = trailStops.map(s => [s.lat, s.lng]);
+    if (points.length > 1) {
+        trailLine = L.polyline(points, { color: '#e98844', weight: 3, dashArray: '10,5' }).addTo(map);
+    }
+
+    // Calculate distance
+    let totalDist = 0;
+    for (let i = 1; i < trailStops.length; i++) {
+        const a = L.latLng(trailStops[i-1].lat, trailStops[i-1].lng);
+        const b = L.latLng(trailStops[i].lat, trailStops[i].lng);
+        totalDist += a.distanceTo(b) / 1000;
+    }
+    summary.classList.remove('hidden');
+    document.getElementById('trail-distance').textContent = totalDist.toFixed(1) + ' km';
+    document.getElementById('trail-time').textContent = Math.round(totalDist * 15) + ' min'; // ~15 min per km with tasting
+}
+
+function clearTrail() {
+    trailStops = [];
+    updateTrailUI();
+}
+
+function shareTrail() {
+    if (trailStops.length < 2) {
+        showToast('Add at least 2 stops to share', 'info');
+        return;
+    }
+    const data = trailStops.map(s => s.id).join(',');
+    const url = window.location.origin + '/trail?stops=' + data;
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('Trail link copied!', 'success');
+    });
+}
+
+// ── URL hash state ────────────────────────────────────────────
+
+function updateHash() {
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const hash = `#z=${zoom}&lat=${center.lat.toFixed(3)}&lng=${center.lng.toFixed(3)}&f=${currentFilter}&m=${currentMapMode}`;
+    history.replaceState(null, '', hash);
+}
+
+function restoreFromHash() {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const params = new URLSearchParams(hash);
+    if (params.has('z') && params.has('lat') && params.has('lng')) {
+        map.setView([parseFloat(params.get('lat')), parseFloat(params.get('lng'))], parseInt(params.get('z')));
+    }
+    if (params.has('f')) toggleFilter(params.get('f'));
+    if (params.has('m')) setMapMode(params.get('m'));
+}
+
+// ── Search / fly to ───────────────────────────────────────────
 
 function flyToSearch(e) {
     e.preventDefault();
@@ -297,19 +758,22 @@ function flyToSearch(e) {
     if (!q) return;
     msg.textContent = 'Searching…';
     msg.classList.remove('hidden');
-    fetch('/api/wineries/locate?q=' + encodeURIComponent(q))
+
+    const endpoint = currentFilter === 'distilleries' ? '/api/spirits/distilleries/locate' : '/api/wineries/locate';
+    fetch(endpoint + '?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
             if (!data.found) {
-                msg.textContent = 'No match for "' + q + '". Try a state, ZIP, or wine region.';
+                msg.textContent = 'No match for "' + q + '". Try a state, ZIP, or region.';
                 return;
             }
-            // Searching for a place implies you want to see wineries there.
-            if (currentFilter !== 'wineries') toggleFilter('wineries');
+            if (currentFilter !== 'wineries' && currentFilter !== 'distilleries') {
+                toggleFilter(endpoint.includes('spirits') ? 'distilleries' : 'wineries');
+            }
             map.setView([data.lat, data.lon], data.zoom);
-            loadPins('wineries');
+            loadPins(currentFilter);
             msg.textContent = data.count
-                ? '📍 ' + data.label + ' — ' + data.count + ' winer' + (data.count === 1 ? 'y' : 'ies')
+                ? '📍 ' + data.label + ' — ' + data.count + ' ' + (endpoint.includes('spirits') ? 'distiller' : 'winer') + (data.count === 1 ? 'y' : 'ies')
                 : '📍 ' + data.label;
             setTimeout(() => msg.classList.add('hidden'), 4000);
         })
@@ -317,21 +781,15 @@ function flyToSearch(e) {
 }
 
 function findNearMe() {
-    if (!navigator.geolocation) {
-        alert('Geolocation not available');
-        return;
-    }
+    if (!navigator.geolocation) { alert('Geolocation not available'); return; }
     navigator.geolocation.getCurrentPosition(pos => {
         map.setView([pos.coords.latitude, pos.coords.longitude], 12);
         loadPins(currentFilter);
-    }, () => {
-        alert('Could not get your location');
-    });
+    }, () => { alert('Could not get your location'); });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     initMap();
-    // Show onboarding on first visit
     if (!localStorage.getItem('map-onboard-dismissed')) {
         document.getElementById('map-onboard').classList.remove('hidden');
     }
@@ -341,5 +799,12 @@ function dismissMapOnboard() {
     localStorage.setItem('map-onboard-dismissed', 'true');
     document.getElementById('map-onboard').classList.add('hidden');
 }
+
+// Close search results on outside click
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('search-results');
+    const input = document.getElementById('map-search');
+    if (wrap && !wrap.contains(e.target) && e.target !== input) wrap.classList.add('hidden');
+});
 </script>
 {% endblock %}
