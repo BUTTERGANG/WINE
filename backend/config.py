@@ -42,7 +42,7 @@ def _normalize_db_url(url: str) -> str:
 
 class Settings(BaseSettings):
     app_name: str = "WINE"
-    debug: bool = True
+    debug: bool = False
     secret_key: str = _generate_secret()
 
     # Database — defaults to local SQLite; DATABASE_URL env overrides.
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
 
     # Session
     session_ttl_hours: int = 24
-    secure_cookies: bool = False  # Set True for HTTPS
+    secure_cookies: bool = True  # Set False only for local HTTP dev
 
     # CSRF
     csrf_secret: str = _generate_secret()

@@ -1,5 +1,6 @@
 """Password reset — token-based reset flow."""
 
+import logging
 import secrets
 from datetime import datetime, timedelta
 
@@ -16,6 +17,7 @@ from backend.services.auth import hash_password, get_session_cookie, create_sess
 from backend.services.template import templates
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 _reset_serializer = URLSafeTimedSerializer(settings.secret_key, salt="wine-password-reset")
 TOKEN_MAX_AGE = 3600  # 1 hour
@@ -35,17 +37,22 @@ async def forgot_password(
     """Generate a password reset token for the user."""
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    
-    # Don't reveal if email exists
-    reset_url = None
+
     if user:
         token = _reset_serializer.dumps(user.id)
-        # In a real app, email this link. For demo, we show it.
         reset_url = f"/api/auth/reset-password?token={token}"
-    
+        # TODO: no email-sending service is wired up yet. Until one exists,
+        # the reset link is only available server-side — users currently
+        # have no way to retrieve it themselves. Do NOT render this URL in
+        # the response; that leaks account-takeover links to anyone who
+        # knows a victim's email address.
+        logger.info("Password reset requested for user_id=%s: %s", user.id, reset_url)
+
+    # Always return the same generic message regardless of whether the
+    # email exists, so this endpoint can't be used to enumerate accounts.
     return templates.TemplateResponse(
         "auth/forgot_password_sent.html",
-        {"request": request, "reset_url": reset_url, "email": email},
+        {"request": request, "email": email},
     )
 
 

@@ -41,7 +41,14 @@ async def get_user_from_token(token: str, db: AsyncSession) -> User | None:
 
 
 async def delete_session(token: str) -> None:
-    """No-op — logout clears the cookie client-side."""
+    """No-op — logout clears the cookie client-side.
+
+    Sessions are stateless signed tokens with no server-side store, so a
+    token stays valid for the rest of its TTL even after "logout". A stolen
+    or leaked token can't be revoked early. Fixing this needs a real
+    server-side revocation list (e.g. a revoked-token-id table checked in
+    get_user_from_token) — out of scope for a quick fix.
+    """
     return None
 
 
