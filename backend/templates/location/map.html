@@ -357,7 +357,11 @@ function viewportRadiusKm() {
 
 function loadMarkers() {
     const center = map.getBounds().getCenter();
-    const radius = document.getElementById('radius-slider').value;
+    // Radius must always cover the visible viewport, or the map looks empty
+    // (e.g. a real user at their geolocation sees nothing within a fixed 50km).
+    // Clamp the slider so users can still tighten, but never below what's on screen.
+    const sliderRadius = parseInt(document.getElementById('radius-slider').value, 10);
+    const radius = Math.max(sliderRadius, viewportRadiusKm());
     const typeFilter = document.getElementById('type-filter').value;
     const venueFilter = document.getElementById('venue-filter').value;
     const minRating = document.getElementById('rating-slider').value;
