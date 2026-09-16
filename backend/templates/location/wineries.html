@@ -175,11 +175,6 @@ function runSearch() {
 
     const results = document.getElementById('winery-results');
     const countEl = document.getElementById('winery-count');
-    if (!active) {
-        results.innerHTML = '';
-        countEl.classList.add('hidden');
-        return;
-    }
 
     searchTimer = setTimeout(() => {
         const params = new URLSearchParams();
@@ -255,5 +250,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         }
     }
 });
+
+// Populate the winery list on initial page load (no filters = show all).
+runSearch();
 </script>
 {% endblock %}

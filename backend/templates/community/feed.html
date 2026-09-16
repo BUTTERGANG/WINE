@@ -111,5 +111,8 @@ function itemHtml(item) {
 }
 
 function loadMoreFeed() { loadFeed(); }
+
+// Render the feed on initial page load (the skeleton otherwise never resolves).
+loadFeed();
 </script>
 {% endblock %}
