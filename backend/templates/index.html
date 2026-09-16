@@ -129,23 +129,46 @@
         var colors = { red: '#3e150b', white: '#2a2418', rosé: '#3d1f2e', sparkling: '#2a1f0e', fortified: '#2e1a0e', dessert: '#2e1a0e' };
         return colors[type] || '#1a1714';
     }
+    // Strength-toned swatch (type hue, ABV-scaled lightness) + ABV dot colour.
+    function wineTone(type, abv) {
+        var base = { red: [8, 38], white: [45, 18], 'rosé': [350, 26], sparkling: [50, 20], fortified: [28, 30], dessert: [25, 30] }[type] || [20, 28];
+        var boost = Math.round(Math.max(0, Math.min(16, ((parseFloat(abv) || 12) - 9) * 1.15)));
+        return 'hsl(' + base[0] + ', ' + base[1] + '%, ' + Math.min(12 + boost, 30) + '%)';
+    }
+    function strengthColor(abv) {
+        var v = parseFloat(abv) || 12;
+        return 'hsl(8, 45%, ' + Math.max(14, 52 - Math.round((v - 9) * 4)) + '%)';
+    }
+    function chip(cls, icon, txt) {
+        return txt ? '<span class="' + cls + '">' + icon + esc(txt) + '</span>' : '';
+    }
 
     function cardHTML(item) {
         const photoHTML = item.photo_url
             ? '<div class="aspect-square rounded-lg overflow-hidden mb-2 cursor-zoom-in" onclick="openLightbox(\'' + esc(item.photo_url) + '\')">' +
               '<img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-full h-full object-cover"></div>'
-            : '<div class="aspect-square rounded-lg mb-2 flex items-center justify-center text-3xl" style="background:' + wineColor(item.wine_type) + '">🍷</div>';
+            : '<div class="aspect-square rounded-lg mb-2 flex items-center justify-center text-3xl" style="background:' + wineTone(item.wine_type, item.wine_abv) + '">🍷</div>';
         const locHTML = item.location_name
             ? '<div class="mt-1 text-xs text-neutral-500 truncate">📍 ' + esc(item.location_name) + '</div>'
             : '';
+        const badges = '<div class="flex flex-wrap gap-1 mt-1.5">' +
+            chip('inline-flex items-center gap-1 bg-wine-500/15 text-wine-300 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none', '', item.wine_type) +
+            chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none', '📍 ', item.wine_region) +
+            chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none', '🍇 ', item.wine_varietal) +
+            chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium tabular-nums leading-none', '📅 ', item.wine_vintage) +
+            (item.wine_abv
+                ? '<span class="inline-flex items-center gap-1 bg-neutral-800 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none" title="' + esc(item.wine_abv) + '% ABV"><span class="w-1.5 h-1.5 rounded-full" style="background:' + strengthColor(item.wine_abv) + '"></span>' + esc(item.wine_abv) + '%</span>'
+                : '') +
+            '</div>';
         return '<div class="bg-neutral-900 rounded-xl border border-neutral-800 hover:border-neutral-700 transition overflow-hidden">' +
             photoHTML +
             '<div class="p-3">' +
               '<div class="flex items-start justify-between gap-1">' +
-                '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="text-sm font-medium text-wine-300 hover:text-wine-200 truncate">' + esc(item.wine_name) + '</a>' +
+                '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="text-sm font-medium text-wine-300 hover:text-wine-200 truncate" title="' + esc(item.wine_name) + '">' + esc(item.wine_name) + '</a>' +
                 '<span class="text-xs text-yellow-500 flex-shrink-0">' + stars(item.rating) + '</span>' +
               '</div>' +
-              '<div class="text-xs text-neutral-500 mt-0.5">by <a href="/profile/' + encodeURIComponent(item.user_id) + '" class="hover:text-wine-300">' + esc(item.username) + '</a></div>' +
+              badges +
+              '<div class="text-xs text-neutral-500 mt-1">by <a href="/profile/' + encodeURIComponent(item.user_id) + '" class="hover:text-wine-300">' + esc(item.username) + '</a></div>' +
               locHTML +
             '</div>' +
         '</div>';

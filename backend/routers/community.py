@@ -25,11 +25,17 @@ async def _resolve_user_id(value: str, db: AsyncSession) -> str | None:
 
 
 def _feed_item(note: TastingNote) -> dict:
+    wine = note.wine
     return {
         "id": note.id,
-        "wine_id": note.wine.id,
-        "wine_name": note.wine.display_name,
-        "wine_type": note.wine.wine_type,
+        "wine_id": wine.id,
+        "wine_name": wine.display_name,
+        "wine_type": wine.wine_type,
+        "wine_region": wine.region or (wine.country or ""),
+        "wine_country": wine.country,
+        "wine_varietal": wine.varietal,
+        "wine_vintage": wine.vintage,
+        "wine_abv": wine.abv,
         "rating": note.rating,
         "username": note.user.display_name or note.user.username,
         "user_id": note.user.id,

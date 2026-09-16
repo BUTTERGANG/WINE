@@ -38,6 +38,7 @@ async def get_wine_of_the_day(db: AsyncSession) -> dict:
         "region": wine.region,
         "varietal": wine.varietal,
         "wine_type": wine.wine_type,
+        "abv": wine.abv,
         "display": wine.display_name,
         "avg_rating": None,
         "note_preview": note.notes if note else None,

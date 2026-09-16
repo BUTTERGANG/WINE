@@ -42,6 +42,26 @@ function wineColor(type) {
     return colors[type] || '#1a1714';
 }
 
+// Strength-toned swatch: per-type hue, but lightness scales with ABV so a
+// higher-strength pour reads richer/darker in the card's placeholder tile.
+function wineTone(type, abv) {
+    var base = { red: [8, 38], white: [45, 18], 'rosé': [350, 26], sparkling: [50, 20], fortified: [28, 30], dessert: [25, 30] }[type] || [20, 28];
+    var boost = Math.round(Math.max(0, Math.min(16, ((parseFloat(abv) || 12) - 9) * 1.15)));
+    var l = Math.min(12 + boost, 30);
+    return 'hsl(' + base[0] + ', ' + base[1] + '%, ' + l + '%)';
+}
+
+// Dot colour for the ABV "strength" badge — pale for light, deep for full.
+function strengthColor(abv) {
+    var v = parseFloat(abv) || 12;
+    var l = Math.max(14, 52 - Math.round((v - 9) * 4));
+    return 'hsl(8, 45%, ' + l + '%)';
+}
+
+function chip(cls, icon, txt) {
+    return txt ? '<span class="' + cls + '">' + icon + esc(txt) + '</span>' : '';
+}
+
 function switchFeed(mode) {
     feedMode = mode;
     feedOffset = 0;
@@ -94,15 +114,26 @@ function stars(n) { return '★'.repeat(Math.min(Math.max(n|0,0),5)) + '☆'.rep
 function itemHtml(item) {
     var photoHTML = item.photo_url
         ? '<div class="aspect-square rounded-lg overflow-hidden mb-2 cursor-zoom-in" onclick="openLightbox(\'' + esc(item.photo_url) + '\')"><img src="' + esc(item.photo_url) + '" alt="" loading="lazy" class="w-full h-full object-cover"></div>'
-        : '<div class="aspect-square rounded-lg mb-2 flex items-center justify-center text-3xl" style="background:' + wineColor(item.wine_type) + '">🍷</div>';
+        : '<div class="aspect-square rounded-lg mb-2 flex items-center justify-center text-3xl" style="background:' + wineTone(item.wine_type, item.wine_abv) + '">🍷</div>';
     var locHTML = item.location_name
         ? '<div class="mt-1 text-xs text-neutral-500 truncate">📍 ' + esc(item.location_name) + '</div>'
         : '';
+    // Richness badges from existing wine metadata: region · type(grape) · vintage · strength
+    var typeChip = chip('inline-flex items-center gap-1 bg-wine-500/15 text-wine-300 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none', '', item.wine_type);
+    var regionChip = chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none', '📍 ', item.wine_region);
+    var varietalChip = chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none', '🍇 ', item.wine_varietal);
+    var vintageChip = chip('inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium tabular-nums leading-none', '📅 ', item.wine_vintage);
+    var abvBadge = item.wine_abv
+        ? '<span class="inline-flex items-center gap-1 bg-neutral-800 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none" title="' + esc(item.wine_abv) + '% ABV">' +
+            '<span class="w-1.5 h-1.5 rounded-full" style="background:' + strengthColor(item.wine_abv) + '"></span>' + esc(item.wine_abv) + '%</span>'
+        : '';
+    var badges = '<div class="flex flex-wrap gap-1 mt-1.5">' + typeChip + regionChip + varietalChip + vintageChip + abvBadge + '</div>';
     return '<div class="bg-neutral-900 rounded-xl border border-neutral-800 hover:border-neutral-700 transition overflow-hidden">' +
         photoHTML +
         '<div class="p-3">' +
-          '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="text-sm font-medium text-wine-300 hover:text-wine-200 truncate block">' + esc(item.wine_name) + '</a>' +
-          '<div class="flex items-center justify-between mt-0.5">' +
+          '<a href="/wine/' + encodeURIComponent(item.wine_id) + '" class="text-sm font-medium text-wine-300 hover:text-wine-200 truncate block" title="' + esc(item.wine_name) + '">' + esc(item.wine_name) + '</a>' +
+          badges +
+          '<div class="flex items-center justify-between mt-1">' +
             '<span class="text-xs text-neutral-500">by <a href="/profile/' + encodeURIComponent(item.user_id) + '" class="hover:text-wine-300">' + esc(item.username) + '</a></span>' +
             '<span class="text-xs text-yellow-500">' + stars(item.rating) + '</span>' +
           '</div>' + locHTML +

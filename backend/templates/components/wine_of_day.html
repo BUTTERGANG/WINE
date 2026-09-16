@@ -1,15 +1,27 @@
 {% if wine %}
+{% set _type_val = wine.wine_type or '' %}
 <a href="/wine/{{ wine.id }}" class="block bg-neutral-900 rounded-xl p-4 border border-neutral-800 hover:border-wine-700 transition">
     <div class="flex items-center gap-2 mb-2">
         <span class="text-lg">🍷</span>
         <span class="text-xs uppercase tracking-wider text-wine-400 font-medium">Wine of the Day</span>
     </div>
     <div class="font-display text-lg text-wine-300">{{ wine.display }}</div>
-    <div class="flex items-center gap-2 mt-1 text-sm text-neutral-400">
-        <span class="capitalize">{{ wine.wine_type }}</span>
-        <span>·</span>
-        <span>{{ wine.region }}</span>
-        {% if wine.varietal %}<span>·</span><span>{{ wine.varietal }}{% endif %}
+    <div class="flex flex-wrap gap-1 mt-2">
+        {% if _type_val %}
+        <span class="inline-flex items-center gap-1 bg-wine-500/15 text-wine-300 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none">{{ _type_val }}</span>
+        {% endif %}
+        {% if wine.region %}
+        <span class="inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none">📍 {{ wine.region }}</span>
+        {% endif %}
+        {% if wine.varietal %}
+        <span class="inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none">🍇 {{ wine.varietal }}</span>
+        {% endif %}
+        {% if wine.vintage %}
+        <span class="inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none">📅 {{ wine.vintage }}</span>
+        {% endif %}
+        {% if wine.abv %}
+        <span class="inline-flex items-center gap-1 bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none" title="{{ wine.abv }}% ABV">💪 {{ wine.abv }}%</span>
+        {% endif %}
     </div>
     {% if wine.avg_rating %}
     <div class="text-yellow-500 text-sm mt-2">{{ '★' * wine.avg_rating|round(0, 'floor')|int }}{{ '☆' * (5 - wine.avg_rating|round(0, 'floor')|int) }}</div>

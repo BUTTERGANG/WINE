@@ -260,13 +260,10 @@
                     <span class="hidden sm:inline">WINE</span>
                 </a>
 
-                <!-- Primary nav (lg+) -->
+                <!-- Primary nav (lg+) → lean: core destinations + grouped dropdowns -->
                 <div class="hidden lg:flex items-center gap-0.5 text-sm">
                     {{ navlink('/map', 'Map') }}
-                    {{ navlink('/spirit/feed', '🥃 Spirits') }}
                     {{ navlink('/feed', 'Feed') }}
-                    {{ navlink('/wineries', 'Wineries') }}
-                    {{ navlink('/groups', 'Groups') }}
                     <div class="relative" data-dropdown>
                         <button type="button" data-dropdown-trigger aria-expanded="false" aria-haspopup="true"
                                 class="px-3 py-1.5 rounded-md text-neutral-300 hover:text-wine-400 hover:bg-neutral-800/60 transition inline-flex items-center gap-1">
@@ -274,18 +271,20 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
                         </button>
                         <div data-dropdown-menu hidden
-                                 class="absolute left-0 mt-1 w-44 py-1 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200]">
-                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Wine</div>
+                                 class="absolute left-0 mt-1 w-56 py-1 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200]">
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">🥂 Browse</div>
+                                {{ dropitem('/spirit/feed', '🥃  Spirits') }}
+                                {{ dropitem('/wineries', '🏷  Wineries') }}
+                                {{ dropitem('/groups', '👥  Groups') }}
+                                {{ dropitem('/spirit/distilleries', '🏭  Distilleries') }}
+                                <div class="border-t border-neutral-800 my-1"></div>
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">🧾 Track</div>
                                 {{ dropitem('/wine/scan', '📷  Scan bottle') }}
                                 {{ dropitem('/api/menu/scan', '📋  Scan menu') }}
                                 {{ dropitem('/wishlist', '🔖  Wishlist') }}
-                                <div class="border-t border-neutral-800 my-1"></div>
-                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Spirits</div>
-                                {{ dropitem('/spirit/add', '🥃  Log a spirit') }}
-                                {{ dropitem('/spirit/distilleries', '🏭  Distilleries') }}
                                 {{ dropitem('/spirit/wishlist', '🔖  Spirit wishlist') }}
                                 <div class="border-t border-neutral-800 my-1"></div>
-                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">You</div>
+                                <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">👤 You</div>
                                 {{ dropitem('/dashboard', '📊  Dashboard') }}
                         </div>
                     </div>
@@ -303,11 +302,22 @@
                         <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-[1200]" hidden></div>
                     </div>
 
-                    <!-- Add wine CTA -->
-                    <a href="/wine/add"
-                       class="hidden sm:inline-flex items-center gap-1 bg-wine-600 hover:bg-wine-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition">
-                        <span class="text-base leading-none">+</span> Add
-                    </a>
+                    <!-- Add CTA → dropdown of quick actions -->
+                    <div class="relative hidden sm:block" data-dropdown>
+                        <button type="button" data-dropdown-trigger aria-expanded="false" aria-haspopup="true"
+                                class="bg-wine-600 hover:bg-wine-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1">
+                            <span class="text-base leading-none">+</span> Add
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <div data-dropdown-menu hidden
+                             class="absolute right-0 mt-1 w-48 py-1 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-[1200]">
+                            <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Add</div>
+                            {{ dropitem('/wine/add', '🍷  Log a wine') }}
+                            {{ dropitem('/wine/scan', '📷  Scan bottle') }}
+                            {{ dropitem('/api/menu/scan', '📋  Scan menu') }}
+                            {{ dropitem('/wishlist', '🔖  Wishlist') }}
+                        </div>
+                    </div>
 
                     {% if user %}
                     <!-- Notifications bell -->
